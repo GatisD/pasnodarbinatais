@@ -141,6 +141,7 @@ export function InvoicesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
   useEffect(() => {
     void Promise.all([loadClients(), loadInvoices(), loadProfile()])
@@ -222,9 +223,7 @@ export function InvoicesPage() {
   )
 
   async function loadClients() {
-    if (!supabase || !user) {
-      return
-    }
+    if (!supabase || !user) return
 
     const { data, error } = await supabase
       .from('clients')
@@ -241,9 +240,7 @@ export function InvoicesPage() {
   }
 
   async function loadProfile() {
-    if (!supabase || !user) {
-      return
-    }
+    if (!supabase || !user) return
 
     const { data, error } = await supabase
       .from('profiles')
@@ -309,9 +306,7 @@ export function InvoicesPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!supabase || !user) {
-      return
-    }
+    if (!supabase || !user) return
 
     if (!clientId) {
       setFeedback('Vispirms izvēlies klientu.')
@@ -319,7 +314,6 @@ export function InvoicesPage() {
     }
 
     const validItems = calculations.preparedItems.filter((item) => item.description.trim().length > 0)
-
     if (validItems.length === 0) {
       setFeedback('Pievieno vismaz vienu rēķina rindu.')
       return
@@ -346,9 +340,7 @@ export function InvoicesPage() {
       .single()
 
     if (invoiceError || !invoice) {
-      setFeedback(
-        getFriendlySupabaseError(invoiceError?.message ?? 'Neizdevās saglabāt rēķinu.'),
-      )
+      setFeedback(getFriendlySupabaseError(invoiceError?.message ?? 'Neizdevās saglabāt rēķinu.'))
       setIsSaving(false)
       return
     }
@@ -382,9 +374,7 @@ export function InvoicesPage() {
   }
 
   async function handleDownloadSavedInvoice(invoice: InvoiceRecord) {
-    if (!supabase || !user) {
-      return
-    }
+    if (!supabase || !user) return
 
     setDownloadingInvoiceId(invoice.id)
     setFeedback(null)
@@ -445,6 +435,26 @@ export function InvoicesPage() {
     } finally {
       setDownloadingInvoiceId(null)
     }
+  }
+
+  async function handleStatusChange(invoiceId: string, status: InvoiceStatus) {
+    if (!supabase) return
+
+    setUpdatingStatusId(invoiceId)
+    setFeedback(null)
+
+    const { error } = await supabase.from('invoices').update({ status }).eq('id', invoiceId)
+
+    if (error) {
+      setFeedback(getFriendlySupabaseError(error.message))
+      setUpdatingStatusId(null)
+      return
+    }
+
+    setInvoices((current) =>
+      current.map((invoice) => (invoice.id === invoiceId ? { ...invoice, status } : invoice)),
+    )
+    setUpdatingStatusId(null)
   }
 
   function updateItem(index: number, field: keyof InvoiceItemForm, value: string) {
@@ -687,7 +697,7 @@ export function InvoicesPage() {
             <div>
               <h3 className="text-2xl font-semibold text-white">Rēķinu saraksts</h3>
               <p className="mt-2 text-base leading-8 text-slate-300">
-                Te redzēsi jaunākos rēķinus, statusus un kopsummas. Katru saglabāto rēķinu vari uzreiz lejupielādēt PDF formātā.
+                Lejupielādē PDF un pārvaldi statusu tieši no saglabāto rēķinu saraksta.
               </p>
             </div>
             <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
@@ -724,21 +734,31 @@ export function InvoicesPage() {
                     </div>
 
                     <div className="text-right">
-                      <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                        {statusLabels[invoice.status]}
-                      </span>
-                      <p className="mt-3 text-2xl font-semibold text-white">
+                      <p className="text-2xl font-semibold text-white">
                         {formatCurrency(invoice.total)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+                    <select
+                      value={invoice.status}
+                      onChange={(event) => void handleStatusChange(invoice.id, event.target.value as InvoiceStatus)}
+                      disabled={updatingStatusId === invoice.id}
+                      className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 disabled:opacity-60"
+                    >
+                      {Object.entries(statusLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+
                     <button
                       type="button"
                       onClick={() => void handleDownloadSavedInvoice(invoice)}
                       disabled={downloadingInvoiceId === invoice.id}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {downloadingInvoiceId === invoice.id ? (
                         <LoaderCircle className="h-4 w-4 animate-spin" />

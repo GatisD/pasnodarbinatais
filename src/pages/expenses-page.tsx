@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Receipt, Trash2, Wallet } from 'lucide-react'
+import { FileUp, Plus, Receipt, Trash2, Wallet } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -30,6 +30,7 @@ type ExpenseRecord = {
   date: string
   description: string | null
   id: string
+  receipt_path: string | null
   receipt_url: string | null
   vat_amount: number
   vendor: string | null
@@ -57,6 +58,10 @@ function getCategoryLabel(category: ExpenseCategory) {
   return categoryOptions.find((option) => option.value === category)?.label ?? category
 }
 
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '-')
+}
+
 export function ExpensesPage() {
   const { user } = useAuth()
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -65,6 +70,7 @@ export function ExpensesPage() {
   const [category, setCategory] = useState<ExpenseCategory>('programmatura')
   const [vendor, setVendor] = useState('')
   const [description, setDescription] = useState('')
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -95,9 +101,11 @@ export function ExpensesPage() {
       return
     }
 
-    const { data, error } = await supabase
+    const client = supabase
+
+    const { data, error } = await client
       .from('expenses')
-      .select('id, date, amount, vat_amount, category, vendor, description, receipt_url')
+      .select('id, date, amount, vat_amount, category, vendor, description, receipt_url, receipt_path')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -108,27 +116,40 @@ export function ExpensesPage() {
       return
     }
 
-    setExpenses(
-      (data ?? []).map((row: any) => ({
-        amount: Number(row.amount ?? 0),
-        category: row.category,
-        date: row.date,
-        description: row.description,
-        id: row.id,
-        receipt_url: row.receipt_url,
-        vat_amount: Number(row.vat_amount ?? 0),
-        vendor: row.vendor,
-      })),
+    const mappedExpenses = await Promise.all(
+      (data ?? []).map(async (row: any) => {
+        let signedUrl: string | null = row.receipt_url ?? null
+
+        if (!signedUrl && row.receipt_path) {
+          const { data: signed } = await client.storage
+            .from('expense-documents')
+            .createSignedUrl(row.receipt_path, 60 * 60)
+
+          signedUrl = signed?.signedUrl ?? null
+        }
+
+        return {
+          amount: Number(row.amount ?? 0),
+          category: row.category,
+          date: row.date,
+          description: row.description,
+          id: row.id,
+          receipt_path: row.receipt_path,
+          receipt_url: signedUrl,
+          vat_amount: Number(row.vat_amount ?? 0),
+          vendor: row.vendor,
+        } satisfies ExpenseRecord
+      }),
     )
+
+    setExpenses(mappedExpenses)
     setIsLoading(false)
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!supabase || !user) {
-      return
-    }
+    if (!supabase || !user) return
 
     const parsedAmount = roundMoney(parseNumber(amount))
     const parsedVatAmount = roundMoney(parseNumber(vatAmount))
@@ -141,11 +162,37 @@ export function ExpensesPage() {
     setIsSaving(true)
     setFeedback(null)
 
+    let receiptPath: string | null = null
+    let receiptUrl: string | null = null
+
+    if (receiptFile) {
+      const fileName = `${Date.now()}-${sanitizeFileName(receiptFile.name)}`
+      receiptPath = `${user.id}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('expense-documents')
+        .upload(receiptPath, receiptFile, { upsert: false })
+
+      if (uploadError) {
+        setFeedback(getFriendlySupabaseError(uploadError.message))
+        setIsSaving(false)
+        return
+      }
+
+      const { data: signed } = await supabase.storage
+        .from('expense-documents')
+        .createSignedUrl(receiptPath, 60 * 60)
+
+      receiptUrl = signed?.signedUrl ?? null
+    }
+
     const { error } = await supabase.from('expenses').insert({
       amount: parsedAmount,
       category,
       date,
       description: description || null,
+      receipt_path: receiptPath,
+      receipt_url: receiptUrl,
       user_id: user.id,
       vat_amount: parsedVatAmount,
       vendor: vendor || null,
@@ -163,20 +210,23 @@ export function ExpensesPage() {
     setCategory('programmatura')
     setVendor('')
     setDescription('')
+    setReceiptFile(null)
     setFeedback('Izdevums saglabāts.')
     setIsSaving(false)
     await loadExpenses()
   }
 
-  async function handleDelete(expenseId: string) {
-    if (!supabase) {
-      return
-    }
+  async function handleDelete(expense: ExpenseRecord) {
+    if (!supabase) return
 
-    setDeletingExpenseId(expenseId)
+    setDeletingExpenseId(expense.id)
     setFeedback(null)
 
-    const { error } = await supabase.from('expenses').delete().eq('id', expenseId)
+    if (expense.receipt_path) {
+      await supabase.storage.from('expense-documents').remove([expense.receipt_path])
+    }
+
+    const { error } = await supabase.from('expenses').delete().eq('id', expense.id)
 
     if (error) {
       setFeedback(getFriendlySupabaseError(error.message))
@@ -195,7 +245,7 @@ export function ExpensesPage() {
           <div>
             <h3 className="text-2xl font-semibold text-white">Jauns izdevums</h3>
             <p className="mt-2 text-base leading-8 text-slate-300">
-              Reģistrē izmaksas, PVN un piegādātāju. Čeku augšupielādi pieliksim nākamajā solī.
+              Reģistrē izmaksas, PVN, piegādātāju un pievieno čeku vai rēķina failu.
             </p>
           </div>
           <div className="rounded-full bg-emerald-400/15 p-3 text-emerald-200">
@@ -270,6 +320,22 @@ export function ExpensesPage() {
                 placeholder="Par ko bija šis izdevums"
               />
             </label>
+
+            <label className="block md:col-span-2">
+              <span className="mb-2 block text-sm text-slate-300">Čeks vai rēķina fails</span>
+              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-white/15 bg-slate-900/50 px-4 py-4 text-slate-300 transition hover:border-emerald-400/40 hover:bg-slate-900/70">
+                <FileUp className="h-5 w-5 text-emerald-300" />
+                <span className="text-sm">
+                  {receiptFile ? receiptFile.name : 'Izvēlies attēlu vai PDF failu'}
+                </span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  className="hidden"
+                  onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
+                />
+              </label>
+            </label>
           </div>
 
           <div className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/70 p-5 text-base md:grid-cols-3">
@@ -309,7 +375,7 @@ export function ExpensesPage() {
           <div>
             <h3 className="text-2xl font-semibold text-white">Izdevumu saraksts</h3>
             <p className="mt-2 text-base leading-8 text-slate-300">
-              Te redzēsi jaunākos izdevumus, kategorijas un summas. Nākamajā solī varēsim pielikt čekus un filtrus.
+              Te redzēsi jaunākos izdevumus, kategorijas, summas un pievienotos čekus.
             </p>
           </div>
           <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
@@ -351,7 +417,7 @@ export function ExpensesPage() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Atvērt pievienoto čeku
+                        Atvērt pievienoto failu
                       </a>
                     ) : null}
                   </div>
@@ -365,7 +431,7 @@ export function ExpensesPage() {
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => void handleDelete(expense.id)}
+                    onClick={() => void handleDelete(expense)}
                     disabled={deletingExpenseId === expense.id}
                     className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                   >
