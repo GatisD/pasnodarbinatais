@@ -39,6 +39,7 @@ export function AppShell({ children }: PropsWithChildren) {
           <nav className="mt-6 space-y-2">
             {navigationItems.map((item) => {
               const Icon = item.icon
+
               return (
                 <NavLink
                   key={item.to}
@@ -60,7 +61,9 @@ export function AppShell({ children }: PropsWithChildren) {
           <div className="mt-8 flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-900/70 px-5 py-5">
             <div className="min-w-0">
               <p className="truncate text-base font-medium text-white">{user?.email ?? 'Nav aktīvas sesijas'}</p>
-              <p className="mt-1 text-sm text-slate-400">{isSupabaseConfigured ? 'Supabase pieslēgts' : 'Gaida .env iestatījumus'}</p>
+              <p className="mt-1 text-sm text-slate-400">
+                {isSupabaseConfigured ? 'Supabase pieslēgts' : 'Gaida .env iestatījumus'}
+              </p>
             </div>
             <button
               type="button"

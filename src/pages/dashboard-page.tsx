@@ -4,6 +4,7 @@ import { Euro, FileSpreadsheet, Hourglass, Wallet } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { roundMoney } from '@/lib/numbers'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 import { calculateMonthlySelfEmployedTaxes } from '@/lib/tax'
@@ -41,6 +42,11 @@ function formatMonthLabel(monthKey: string) {
   return new Intl.DateTimeFormat('lv-LV', { month: 'short' }).format(new Date(year, month - 1, 1))
 }
 
+function formatMonthLong(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number)
+  return new Intl.DateTimeFormat('lv-LV', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+}
+
 function getPreviousMonthKey(monthKey: string, offset: number) {
   const [year, month] = monthKey.split('-').map(Number)
   const date = new Date(year, month - 1 - offset, 1)
@@ -59,25 +65,23 @@ export function DashboardPage() {
     void loadDashboardData()
   }, [user?.id])
 
-  const monthLabel = useMemo(() => {
-    const [year, month] = selectedMonth.split('-').map(Number)
-    return new Intl.DateTimeFormat('lv-LV', {
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(year, month - 1, 1))
-  }, [selectedMonth])
+  const monthLabel = useMemo(() => formatMonthLong(selectedMonth), [selectedMonth])
 
   const chartData = useMemo<ChartRow[]>(() => {
     const monthKeys = Array.from({ length: 12 }, (_, index) => getPreviousMonthKey(selectedMonth, 11 - index))
 
     return monthKeys.map((monthKey) => {
-      const income = invoices
-        .filter((invoice) => invoice.issue_date.startsWith(monthKey) && invoice.status !== 'atcelts')
-        .reduce((sum, invoice) => sum + invoice.total, 0)
+      const income = roundMoney(
+        invoices
+          .filter((invoice) => invoice.issue_date.startsWith(monthKey) && invoice.status !== 'atcelts')
+          .reduce((sum, invoice) => sum + invoice.total, 0),
+      )
 
-      const expenseTotal = expenses
-        .filter((expense) => expense.date.startsWith(monthKey))
-        .reduce((sum, expense) => sum + expense.amount, 0)
+      const expenseTotal = roundMoney(
+        expenses
+          .filter((expense) => expense.date.startsWith(monthKey))
+          .reduce((sum, expense) => sum + expense.amount, 0),
+      )
 
       return {
         expenses: expenseTotal,
@@ -88,31 +92,43 @@ export function DashboardPage() {
     })
   }, [expenses, invoices, selectedMonth])
 
+  const periodInvoices = useMemo(
+    () =>
+      invoices
+        .filter((invoice) => invoice.issue_date.startsWith(selectedMonth))
+        .sort((a, b) => b.issue_date.localeCompare(a.issue_date)),
+    [invoices, selectedMonth],
+  )
+
+  const periodExpenses = useMemo(
+    () =>
+      expenses
+        .filter((expense) => expense.date.startsWith(selectedMonth))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [expenses, selectedMonth],
+  )
+
   const monthSummary = useMemo(() => {
-    const currentIncome = chartData.find((entry) => entry.monthKey === selectedMonth)?.income ?? 0
-    const currentExpenses = chartData.find((entry) => entry.monthKey === selectedMonth)?.expenses ?? 0
-    const taxableIncome = currentIncome - currentExpenses
+    const currentIncome = roundMoney(
+      periodInvoices
+        .filter((invoice) => invoice.status !== 'atcelts')
+        .reduce((sum, invoice) => sum + invoice.total, 0),
+    )
+    const currentExpenses = roundMoney(periodExpenses.reduce((sum, expense) => sum + expense.amount, 0))
+    const taxableIncome = roundMoney(currentIncome - currentExpenses)
     const taxEstimate = calculateMonthlySelfEmployedTaxes(taxableIncome)
 
     return {
       currentExpenses,
       currentIncome,
       estimatedTaxes: taxEstimate.totalTaxes,
+      paidInvoices: periodInvoices.filter((invoice) => invoice.status === 'apmaksats').length,
       taxableIncome,
+      totalInvoices: periodInvoices.length,
       vsaoi: taxEstimate.vsaoi,
       iin: taxEstimate.iin,
     }
-  }, [chartData, selectedMonth])
-
-  const recentInvoices = useMemo(
-    () => invoices.slice().sort((a, b) => b.issue_date.localeCompare(a.issue_date)).slice(0, 5),
-    [invoices],
-  )
-
-  const recentExpenses = useMemo(
-    () => expenses.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
-    [expenses],
-  )
+  }, [periodExpenses, periodInvoices])
 
   async function loadDashboardData() {
     if (!supabase || !user) {
@@ -172,13 +188,13 @@ export function DashboardPage() {
     {
       label: 'Ieņēmumi periodā',
       value: formatCurrency(monthSummary.currentIncome),
-      hint: 'Izrakstītie rēķini izvēlētajā mēnesī',
+      hint: `${monthSummary.totalInvoices} rēķini atlasītajā mēnesī`,
       icon: Euro,
     },
     {
       label: 'Izdevumi periodā',
       value: formatCurrency(monthSummary.currentExpenses),
-      hint: 'Reģistrētie izdevumi izvēlētajā mēnesī',
+      hint: `${periodExpenses.length} izdevumi atlasītajā mēnesī`,
       icon: Wallet,
     },
     {
@@ -190,7 +206,7 @@ export function DashboardPage() {
     {
       label: 'Prognozētie nodokļi',
       value: formatCurrency(monthSummary.estimatedTaxes),
-      hint: 'Vienkāršots 25,5% aprēķins',
+      hint: `VSAOI ${formatCurrency(monthSummary.vsaoi)} + IIN ${formatCurrency(monthSummary.iin)}`,
       icon: Hourglass,
     },
   ]
@@ -203,7 +219,7 @@ export function DashboardPage() {
             <p className="text-sm uppercase tracking-[0.28em] text-slate-400">Pārskata periods</p>
             <h2 className="mt-2 text-3xl font-semibold text-white">{monthLabel}</h2>
             <p className="mt-2 max-w-3xl text-base leading-8 text-slate-300">
-              Šeit redzi izvēlētā mēneša ieņēmumus un izdevumus, bet zemāk vari salīdzināt arī pēdējo 12 mēnešu dinamiku.
+              Šeit redzi atlasītā mēneša ieņēmumus, izdevumus un provizorisko nodokļu ainu. Zemāk vari salīdzināt pēdējo 12 mēnešu dinamiku.
             </p>
           </div>
 
@@ -236,22 +252,15 @@ export function DashboardPage() {
           const Icon = card.icon
 
           return (
-            <article
-              key={card.label}
-              className="rounded-[28px] border border-white/10 bg-white/5 p-5"
-            >
+            <article key={card.label} className="rounded-[28px] border border-white/10 bg-white/5 p-5">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-lg font-medium text-slate-200">{card.label}</p>
                 <div className="rounded-full bg-emerald-400/15 p-3 text-emerald-200">
                   <Icon className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-8 text-4xl font-semibold tracking-tight text-white">
-                {isLoading ? '...' : card.value}
-              </p>
-              <p className="mt-3 text-sm uppercase tracking-[0.24em] text-slate-500">
-                {card.hint}
-              </p>
+              <p className="mt-8 text-4xl font-semibold tracking-tight text-white">{isLoading ? '...' : card.value}</p>
+              <p className="mt-3 text-sm uppercase tracking-[0.18em] text-slate-500">{card.hint}</p>
             </article>
           )
         })}
@@ -261,9 +270,9 @@ export function DashboardPage() {
         <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-2xl font-semibold text-white">Pēdējie 12 mēneši</h3>
+              <h3 className="text-2xl font-semibold text-white">Pēdējo 12 mēnešu dinamika</h3>
               <p className="mt-2 text-base leading-8 text-slate-300">
-                Salīdzini ieņēmumus un izdevumus pa mēnešiem, pārslēdzot periodu augšā.
+                Grafiks vienmēr beidzas ar atlasīto mēnesi, tāpēc vari ērti paskatīties atpakaļ līdz 12 mēnešiem.
               </p>
             </div>
           </div>
@@ -272,17 +281,12 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: '#94a3b8', fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
+                <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis
                   tick={{ fill: '#94a3b8', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(value) => `${Math.round(value)}€`}
+                  tickFormatter={(value) => `${Math.round(Number(value ?? 0))}€`}
                 />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.03)' }}
@@ -292,10 +296,7 @@ export function DashboardPage() {
                     borderRadius: '16px',
                     color: '#fff',
                   }}
-                  formatter={(value, name) => [
-                    formatCurrency(Number(value ?? 0)),
-                    name === 'income' ? 'Ieņēmumi' : 'Izdevumi',
-                  ]}
+                  formatter={(value, name) => [formatCurrency(Number(value ?? 0)), name === 'income' ? 'Ieņēmumi' : 'Izdevumi']}
                 />
                 <Bar dataKey="income" name="Ieņēmumi" radius={[8, 8, 0, 0]} fill="#34d399" />
                 <Bar dataKey="expenses" name="Izdevumi" radius={[8, 8, 0, 0]} fill="#60a5fa" />
@@ -305,25 +306,46 @@ export function DashboardPage() {
         </div>
 
         <div className="rounded-[28px] border border-white/10 bg-slate-900/80 p-6">
-          <h3 className="text-2xl font-semibold text-white">Ātrais skats</h3>
+          <h3 className="text-2xl font-semibold text-white">Ātrais skats par periodu</h3>
           <div className="mt-5 space-y-4">
             <DashboardQuickList
-              title="Pēdējie rēķini"
-              emptyText="Rēķinu vēl nav."
-              items={recentInvoices.map((invoice) => ({
+              title="Jaunākie rēķini periodā"
+              emptyText="Šajā mēnesī rēķinu vēl nav."
+              items={periodInvoices.slice(0, 5).map((invoice) => ({
                 id: invoice.id,
                 primary: invoice.client_name ?? 'Bez klienta',
                 secondary: `${formatDate(invoice.issue_date)} • ${formatCurrency(invoice.total)}`,
               }))}
             />
             <DashboardQuickList
-              title="Pēdējie izdevumi"
-              emptyText="Izdevumu vēl nav."
-              items={recentExpenses.map((expense) => ({
+              title="Jaunākie izdevumi periodā"
+              emptyText="Šajā mēnesī izdevumu vēl nav."
+              items={periodExpenses.slice(0, 5).map((expense) => ({
                 id: expense.id,
                 primary: expense.vendor ?? 'Bez piegādātāja',
                 secondary: `${formatDate(expense.date)} • ${formatCurrency(expense.amount)}`,
               }))}
+            />
+            <DashboardQuickList
+              title="Nodokļu kopsavilkums"
+              emptyText="Nav datu nodokļu aprēķinam."
+              items={[
+                {
+                  id: 'vsaoi',
+                  primary: 'VSAOI prognoze',
+                  secondary: formatCurrency(monthSummary.vsaoi),
+                },
+                {
+                  id: 'iin',
+                  primary: 'IIN prognoze',
+                  secondary: formatCurrency(monthSummary.iin),
+                },
+                {
+                  id: 'paid',
+                  primary: 'Apmaksāti rēķini periodā',
+                  secondary: `${monthSummary.paidInvoices} gab.`,
+                },
+              ]}
             />
           </div>
         </div>
