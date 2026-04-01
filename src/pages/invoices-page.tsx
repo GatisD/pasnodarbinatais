@@ -92,9 +92,8 @@ export function InvoicesPage() {
 
   const summary = useMemo(() => {
     const year = (monthFilter || new Date().toISOString()).slice(0, 4)
-    const yearIncome = invoices.filter((invoice) => invoice.issue_date.startsWith(year) && invoice.status !== 'atcelts').reduce((sum, invoice) => sum + invoice.total, 0)
     return {
-      yearIncome,
+      yearIncome: invoices.filter((invoice) => invoice.issue_date.startsWith(year) && invoice.status !== 'atcelts').reduce((sum, invoice) => sum + invoice.total, 0),
       monthIncome: filtered.filter((invoice) => invoice.status !== 'atcelts').reduce((sum, invoice) => sum + invoice.total, 0),
       paid: filtered.filter((invoice) => invoice.status === 'apmaksats').length,
       late: filtered.filter((invoice) => invoice.status === 'kavejas').length,
@@ -135,6 +134,12 @@ export function InvoicesPage() {
     setNotes('')
     setItems([emptyItem()])
     setShowPreview(false)
+  }
+
+  function clearFilters() {
+    setMonthFilter(new Date().toISOString().slice(0, 7))
+    setStatusFilter('all')
+    setSearch('')
   }
 
   async function loadInvoiceItems(invoiceId: string) {
@@ -293,14 +298,17 @@ export function InvoicesPage() {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-4">
-              <h3 className="text-3xl font-semibold text-white">Rēķinu saraksts</h3>
+              <h3 className="text-3xl font-semibold text-white">Rēķini</h3>
               <p className="text-base text-slate-300">Kalendārā gada ieņēmumi: <span className="font-semibold text-white">{formatCurrency(summary.yearIncome)}</span></p>
             </div>
-            <p className="mt-3 max-w-3xl text-base leading-8 text-slate-300">Filtrē rēķinus pēc mēneša, statusa vai klienta, un pārvaldi PDF un statusus vienuviet.</p>
+            <p className="mt-3 max-w-3xl text-base leading-8 text-slate-300">Filtrē rēķinus pēc mēneša, statusa vai klienta un pārvaldi PDF, rediģēšanu un dublēšanu vienuviet.</p>
           </div>
-          <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 font-medium text-white transition hover:bg-sky-500">
-            {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Izveidot rēķinu'}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-100 transition hover:bg-white/10">Notīrīt filtrus</button>
+            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 font-medium text-white transition hover:bg-sky-500">
+              {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Izveidot rēķinu'}
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -321,7 +329,14 @@ export function InvoicesPage() {
       {showComposer ? (
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-            <h4 className="text-2xl font-semibold text-white">{editingInvoiceId ? 'Rediģēt rēķinu' : 'Jauns rēķins'}</h4>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h4 className="text-2xl font-semibold text-white">{editingInvoiceId ? 'Rediģēt rēķinu' : 'Jauns rēķins'}</h4>
+                <p className="mt-2 text-sm leading-7 text-slate-400">Aizpildi klientu, rindas un summas. Ja vajag, uzreiz apskati PDF melnrakstu.</p>
+              </div>
+              <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
+            </div>
+
             <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field title="Klients"><select value={clientId} onChange={(event) => setClientId(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50"><option value="">Izvēlies klientu</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
@@ -329,16 +344,14 @@ export function InvoicesPage() {
                 <Field title="Izrakstīšanas datums"><input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
                 <Field title="Apmaksas termiņš"><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
               </div>
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between"><h5 className="text-lg font-semibold text-white">Rēķina rindas</h5><button type="button" onClick={() => setItems((current) => [...current, emptyItem()])} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"><Plus className="h-4 w-4" />Pievienot rindu</button></div>
                 {items.map((item, index) => <div key={index} className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/60 p-4 md:grid-cols-[1.45fr_0.5fr_0.45fr_0.65fr_auto]"><input value={item.description} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Pakalpojuma apraksts" /><input value={item.quantity} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, quantity: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="1" /><input value={item.unit} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="gab." /><input value={item.unit_price} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit_price: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="0,00" /><button type="button" onClick={() => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index))} className="inline-flex items-center justify-center rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-rose-100 transition hover:bg-rose-400/15"><Trash2 className="h-4 w-4" /></button></div>)}
               </div>
+
               <Field title="Piezīmes"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Papildu piezīmes rēķinam" /></Field>
-              <div className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/70 p-5 text-base md:grid-cols-3">
-                <Stat title="Starpsumma" value={formatCurrency(subtotal)} compact />
-                <Stat title="PVN" value={formatCurrency(vatAmount)} compact />
-                <Stat title="Kopā" value={formatCurrency(total)} compact accent />
-              </div>
+              <div className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/70 p-5 text-base md:grid-cols-3"><Stat title="Starpsumma" value={formatCurrency(subtotal)} compact /><Stat title="PVN" value={formatCurrency(vatAmount)} compact /><Stat title="Kopā" value={formatCurrency(total)} compact accent /></div>
               <div className="flex flex-wrap gap-3">
                 <button type="submit" disabled={isSaving} className="inline-flex rounded-2xl bg-emerald-400 px-5 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300">{isSaving ? 'Saglabājam...' : editingInvoiceId ? 'Saglabāt izmaiņas' : 'Saglabāt rēķinu'}</button>
                 <PDFDownloadLink document={<InvoicePdfDocument data={draftPdf} />} fileName={`${draftNumber}.pdf`} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-100 transition hover:bg-white/10">{({ loading }) => <><Download className="h-4 w-4" />{loading ? 'Gatavojam PDF...' : 'Lejupielādēt melnrakstu'}</>}</PDFDownloadLink>
@@ -346,6 +359,7 @@ export function InvoicesPage() {
               </div>
             </form>
           </div>
+
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <h4 className="text-2xl font-semibold text-white">Melnraksta preview</h4>
             {showPreview ? <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60"><PDFViewer width="100%" height={760} showToolbar><InvoicePdfDocument data={draftPdf} /></PDFViewer></div> : <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">Preview ir paslēpts. Vari to ieslēgt ar pogu “Rādīt preview”.</div>}
@@ -356,10 +370,10 @@ export function InvoicesPage() {
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-4 md:p-6">
         {isLoading ? <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">Ielādējam rēķinus...</div> : filtered.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">Nekas neatbilst atlasītajiem filtriem.</div> : (
           <div className="overflow-hidden rounded-[24px] border border-white/10">
-            <div className="hidden grid-cols-[140px_minmax(0,1.5fr)_220px_220px_250px] gap-4 bg-slate-100/5 px-5 py-4 text-sm font-medium text-slate-300 lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span>Summa / darbības</span></div>
+            <div className="hidden grid-cols-[140px_minmax(0,1.5fr)_220px_220px_320px] gap-4 bg-slate-100/5 px-5 py-4 text-sm font-medium text-slate-300 lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span>Summa / darbības</span></div>
             <div className="divide-y divide-white/10">
               {filtered.map((invoice) => (
-                <article key={invoice.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[140px_minmax(0,1.5fr)_220px_220px_250px] lg:items-center">
+                <article key={invoice.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[140px_minmax(0,1.5fr)_220px_220px_320px] lg:items-center">
                   <div className="text-base font-medium text-white">{formatDate(invoice.issue_date)}</div>
                   <div className="min-w-0"><p className="truncate text-lg font-semibold text-white">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-1 truncate text-sm text-slate-400">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
                   <div><p className="text-base font-semibold text-white">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-1 text-sm text-slate-400">Termiņš: {formatDate(invoice.due_date)}</p></div>
