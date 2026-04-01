@@ -25,6 +25,7 @@ export type InvoicePdfItem = {
 }
 
 export type InvoicePdfData = {
+  client: InvoicePdfParty
   dueDate: string
   invoiceNumber: string
   issueDate: string
@@ -33,7 +34,6 @@ export type InvoicePdfData = {
   profile: InvoicePdfParty
   subtotal: number
   total: number
-  client: InvoicePdfParty
   vatAmount: number
   vatRateLabel: string
 }
@@ -221,7 +221,7 @@ export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
           <View>
             <Text style={styles.brandTitle}>Rēķins</Text>
             <Text style={styles.brandSubtitle}>
-              Profesionāls rēķina melnraksts pašnodarbinātā darba vajadzībām.
+              Profesionāls rēķina dokuments pašnodarbinātā darba vajadzībām.
             </Text>
           </View>
           <Text style={styles.badge}>Sagatavots nosūtīšanai</Text>

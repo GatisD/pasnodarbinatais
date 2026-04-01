@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
+import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer'
 import {
   CheckCircle2,
   Download,
   Eye,
   FileText,
+  LoaderCircle,
   Plus,
   Trash2,
 } from 'lucide-react'
@@ -13,6 +14,8 @@ import { useAuth } from '@/features/auth/auth-provider'
 import {
   InvoicePdfDocument,
   type InvoicePdfData,
+  type InvoicePdfItem,
+  type InvoicePdfParty,
 } from '@/features/invoices/invoice-pdf'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { parseNumber, roundMoney } from '@/lib/numbers'
@@ -31,13 +34,17 @@ type ClientOption = {
 type InvoiceStatus = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
 
 type InvoiceRecord = {
-  client_name: string | null
+  client: ClientOption | null
   due_date: string
   id: string
   invoice_number: string | null
   issue_date: string
+  notes: string | null
   status: InvoiceStatus
+  subtotal: number
   total: number
+  vat_amount: number
+  vat_rate: number
 }
 
 type InvoiceItemForm = {
@@ -45,6 +52,14 @@ type InvoiceItemForm = {
   quantity: string
   unit: string
   unit_price: string
+}
+
+type InvoiceItemRecord = {
+  description: string
+  quantity: number
+  total: number
+  unit: string
+  unit_price: number
 }
 
 type ProfileSnapshot = {
@@ -62,6 +77,54 @@ const emptyItem = (): InvoiceItemForm => ({
   unit_price: '0',
 })
 
+const statusLabels: Record<InvoiceStatus, string> = {
+  izrakstits: 'Izrakstīts',
+  apmaksats: 'Apmaksāts',
+  kavejas: 'Kavējas',
+  atcelts: 'Atcelts',
+}
+
+function buildInvoicePdfData(params: {
+  client: InvoicePdfParty | null
+  dueDate: string
+  invoiceNumber: string
+  issueDate: string
+  items: InvoicePdfItem[]
+  notes?: string | null
+  profile: ProfileSnapshot | null
+  subtotal: number
+  total: number
+  userEmail?: string | null
+  vatAmount: number
+  vatRateLabel: string
+}): InvoicePdfData {
+  return {
+    client: {
+      address: params.client?.address ?? null,
+      bankIban: params.client?.bankIban ?? null,
+      email: params.client?.email ?? null,
+      name: params.client?.name ?? 'Klients nav izvēlēts',
+      regNumber: params.client?.regNumber ?? null,
+    },
+    dueDate: params.dueDate,
+    invoiceNumber: params.invoiceNumber,
+    issueDate: params.issueDate,
+    items: params.items,
+    notes: params.notes ?? '',
+    profile: {
+      address: params.profile?.address ?? null,
+      bankIban: params.profile?.bank_iban ?? null,
+      email: params.profile?.email ?? params.userEmail ?? null,
+      name: params.profile?.full_name ?? 'Pašnodarbinātais',
+      regNumber: params.profile?.person_code ?? null,
+    },
+    subtotal: params.subtotal,
+    total: params.total,
+    vatAmount: params.vatAmount,
+    vatRateLabel: params.vatRateLabel,
+  }
+}
+
 export function InvoicesPage() {
   const { user } = useAuth()
   const [clients, setClients] = useState<ClientOption[]>([])
@@ -77,6 +140,7 @@ export function InvoicesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
 
   useEffect(() => {
     void Promise.all([loadClients(), loadInvoices(), loadProfile()])
@@ -122,40 +186,38 @@ export function InvoicesPage() {
     return `R-${year}-${String(nextSequence).padStart(3, '0')}`
   }, [invoices.length, issueDate])
 
-  const pdfData: InvoicePdfData = useMemo(
-    () => ({
-      client: {
-        address: selectedClient?.address ?? null,
-        bankIban: selectedClient?.bank_iban ?? null,
-        email: selectedClient?.email ?? null,
-        name: selectedClient?.name ?? 'Klients nav izvēlēts',
-        regNumber: selectedClient?.reg_number ?? null,
-      },
-      dueDate,
-      invoiceNumber: draftInvoiceNumber,
-      issueDate,
-      items: calculations.preparedItems
-        .filter((item) => item.description.trim().length > 0)
-        .map((item) => ({
-          description: item.description,
-          quantity: item.quantity,
-          total: item.total,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-        })),
-      notes,
-      profile: {
-        address: profile?.address ?? null,
-        bankIban: profile?.bank_iban ?? null,
-        email: profile?.email ?? user?.email ?? null,
-        name: profile?.full_name ?? 'Pašnodarbinātais',
-        regNumber: profile?.person_code ?? null,
-      },
-      subtotal: calculations.subtotal,
-      total: calculations.total,
-      vatAmount: calculations.vatAmount,
-      vatRateLabel: `${calculations.vatRateValue.toFixed(0)}%`,
-    }),
+  const draftPdfData = useMemo(
+    () =>
+      buildInvoicePdfData({
+        client: selectedClient
+          ? {
+              address: selectedClient.address,
+              bankIban: selectedClient.bank_iban,
+              email: selectedClient.email,
+              name: selectedClient.name,
+              regNumber: selectedClient.reg_number,
+            }
+          : null,
+        dueDate,
+        invoiceNumber: draftInvoiceNumber,
+        issueDate,
+        items: calculations.preparedItems
+          .filter((item) => item.description.trim().length > 0)
+          .map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            total: item.total,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+          })),
+        notes,
+        profile,
+        subtotal: calculations.subtotal,
+        total: calculations.total,
+        userEmail: user?.email,
+        vatAmount: calculations.vatAmount,
+        vatRateLabel: `${calculations.vatRateValue.toFixed(0)}%`,
+      }),
     [calculations, draftInvoiceNumber, dueDate, issueDate, notes, profile, selectedClient, user?.email],
   )
 
@@ -205,7 +267,9 @@ export function InvoicesPage() {
 
     const { data, error } = await supabase
       .from('invoices')
-      .select('id, invoice_number, issue_date, due_date, status, total, clients(name)')
+      .select(
+        'id, invoice_number, issue_date, due_date, status, subtotal, vat_amount, vat_rate, total, notes, clients(id, name, reg_number, address, email, bank_iban)',
+      )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
@@ -216,13 +280,26 @@ export function InvoicesPage() {
     }
 
     const mapped = (data ?? []).map((row: any) => ({
-      client_name: row.clients?.name ?? null,
+      client: row.clients
+        ? {
+            address: row.clients.address,
+            bank_iban: row.clients.bank_iban,
+            email: row.clients.email,
+            id: row.clients.id,
+            name: row.clients.name,
+            reg_number: row.clients.reg_number,
+          }
+        : null,
       due_date: row.due_date,
       id: row.id,
       invoice_number: row.invoice_number,
       issue_date: row.issue_date,
+      notes: row.notes,
       status: row.status,
+      subtotal: Number(row.subtotal ?? 0),
       total: Number(row.total ?? 0),
+      vat_amount: Number(row.vat_amount ?? 0),
+      vat_rate: Number(row.vat_rate ?? 0),
     }))
 
     setInvoices(mapped)
@@ -302,6 +379,72 @@ export function InvoicesPage() {
     setFeedback('Rēķins saglabāts.')
     setIsSaving(false)
     await loadInvoices()
+  }
+
+  async function handleDownloadSavedInvoice(invoice: InvoiceRecord) {
+    if (!supabase || !user) {
+      return
+    }
+
+    setDownloadingInvoiceId(invoice.id)
+    setFeedback(null)
+
+    const { data: invoiceItems, error } = await supabase
+      .from('invoice_items')
+      .select('description, quantity, unit, unit_price, total')
+      .eq('invoice_id', invoice.id)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      setFeedback(getFriendlySupabaseError(error.message))
+      setDownloadingInvoiceId(null)
+      return
+    }
+
+    const pdfData = buildInvoicePdfData({
+      client: invoice.client
+        ? {
+            address: invoice.client.address,
+            bankIban: invoice.client.bank_iban,
+            email: invoice.client.email,
+            name: invoice.client.name,
+            regNumber: invoice.client.reg_number,
+          }
+        : null,
+      dueDate: invoice.due_date,
+      invoiceNumber: invoice.invoice_number ?? `rekins-${invoice.id}`,
+      issueDate: invoice.issue_date,
+      items: (invoiceItems ?? []).map((item: InvoiceItemRecord) => ({
+        description: item.description,
+        quantity: Number(item.quantity ?? 0),
+        total: Number(item.total ?? 0),
+        unit: item.unit,
+        unitPrice: Number(item.unit_price ?? 0),
+      })),
+      notes: invoice.notes,
+      profile,
+      subtotal: invoice.subtotal,
+      total: invoice.total,
+      userEmail: user.email,
+      vatAmount: invoice.vat_amount,
+      vatRateLabel: `${roundMoney(invoice.vat_rate * 100).toFixed(0)}%`,
+    })
+
+    try {
+      const blob = await pdf(<InvoicePdfDocument data={pdfData} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${pdfData.invoiceNumber}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setFeedback('Neizdevās sagatavot PDF lejupielādi.')
+    } finally {
+      setDownloadingInvoiceId(null)
+    }
   }
 
   function updateItem(index: number, field: keyof InvoiceItemForm, value: string) {
@@ -482,14 +625,14 @@ export function InvoicesPage() {
             </button>
 
             <PDFDownloadLink
-              document={<InvoicePdfDocument data={pdfData} />}
+              document={<InvoicePdfDocument data={draftPdfData} />}
               fileName={`${draftInvoiceNumber}.pdf`}
               className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-100 transition hover:bg-white/10"
             >
               {({ loading }) => (
                 <>
                   <Download className="h-4 w-4" />
-                  {loading ? 'Gatavojam PDF...' : 'Lejupielādēt PDF'}
+                  {loading ? 'Gatavojam PDF...' : 'Lejupielādēt melnrakstu'}
                 </>
               )}
             </PDFDownloadLink>
@@ -529,7 +672,7 @@ export function InvoicesPage() {
           {showPreview ? (
             <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
               <PDFViewer width="100%" height={640} showToolbar>
-                <InvoicePdfDocument data={pdfData} />
+                <InvoicePdfDocument data={draftPdfData} />
               </PDFViewer>
             </div>
           ) : (
@@ -544,7 +687,7 @@ export function InvoicesPage() {
             <div>
               <h3 className="text-2xl font-semibold text-white">Rēķinu saraksts</h3>
               <p className="mt-2 text-base leading-8 text-slate-300">
-                Te redzēsi jaunākos rēķinus, statusus un kopsummas. Statusu maiņu un PDF no saglabātajiem rēķiniem pievienosim nākamajā solī.
+                Te redzēsi jaunākos rēķinus, statusus un kopsummas. Katru saglabāto rēķinu vari uzreiz lejupielādēt PDF formātā.
               </p>
             </div>
             <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
@@ -573,7 +716,7 @@ export function InvoicesPage() {
                         {invoice.invoice_number ?? 'Jauns rēķins'}
                       </p>
                       <h4 className="mt-2 text-xl font-semibold text-white">
-                        {invoice.client_name ?? 'Bez klienta nosaukuma'}
+                        {invoice.client?.name ?? 'Bez klienta nosaukuma'}
                       </h4>
                       <p className="mt-2 text-sm text-slate-400">
                         Izrakstīts: {formatDate(invoice.issue_date)} | Termiņš: {formatDate(invoice.due_date)}
@@ -582,12 +725,28 @@ export function InvoicesPage() {
 
                     <div className="text-right">
                       <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                        {invoice.status}
+                        {statusLabels[invoice.status]}
                       </span>
                       <p className="mt-3 text-2xl font-semibold text-white">
                         {formatCurrency(invoice.total)}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleDownloadSavedInvoice(invoice)}
+                      disabled={downloadingInvoiceId === invoice.id}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {downloadingInvoiceId === invoice.id ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {downloadingInvoiceId === invoice.id ? 'Gatavojam PDF...' : 'Lejupielādēt PDF'}
+                    </button>
                   </div>
                 </article>
               ))}
