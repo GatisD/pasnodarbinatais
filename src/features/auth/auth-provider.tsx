@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 
+import { ensureProfileExists } from '@/lib/profiles'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 type AuthContextValue = {
@@ -31,9 +32,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     let isMounted = true
 
-    void supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(async ({ data }) => {
       if (!isMounted) {
         return
+      }
+
+      if (data.session?.user) {
+        await ensureProfileExists(data.session.user.id, data.session.user.email)
       }
 
       setSession(data.session)
@@ -44,6 +49,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void (async () => {
+        if (nextSession?.user) {
+          await ensureProfileExists(nextSession.user.id, nextSession.user.email)
+        }
+      })()
+
       if (!isMounted) {
         return
       }
