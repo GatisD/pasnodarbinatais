@@ -1,18 +1,10 @@
 import type { PropsWithChildren } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import {
-  BarChart3,
-  CircleUserRound,
-  FileText,
-  LayoutDashboard,
-  LogOut,
-  Receipt,
-  Users,
-} from 'lucide-react'
+import { BarChart3, CircleUserRound, FileText, LayoutDashboard, LogOut, Receipt, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
-import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 
 const navigationItems = [
   { to: '/', label: 'Pārskats', icon: LayoutDashboard },
@@ -28,10 +20,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const { isSupabaseConfigured, user } = useAuth()
 
   async function handleSignOut() {
-    if (!supabase) {
-      return
-    }
-
+    if (!supabase) return
     await supabase.auth.signOut()
     navigate('/auth')
   }
@@ -42,23 +31,14 @@ export function AppShell({ children }: PropsWithChildren) {
         <aside className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur">
           <div className="border-b border-white/10 pb-6">
             <Link to="/" className="block">
-              <p className="text-xs uppercase tracking-[0.32em] text-sky-200/70">
-                Pašnodarbinātais
-              </p>
-              <h1 className="mt-3 text-[2rem] font-semibold tracking-tight text-white">
-                Pašnodarbinātā uzskaite
-              </h1>
+              <p className="text-xs uppercase tracking-[0.32em] text-sky-200/70">Pašnodarbinātais</p>
+              <h1 className="mt-3 text-[2rem] font-semibold tracking-tight text-white">Pašnodarbinātā uzskaite</h1>
             </Link>
-            <p className="mt-4 text-[15px] leading-8 text-slate-300">
-              Privāta finanšu darba telpa ar klientiem, rēķiniem, izdevumiem un
-              atskaitēm vienuviet.
-            </p>
           </div>
 
           <nav className="mt-6 space-y-2">
             {navigationItems.map((item) => {
               const Icon = item.icon
-
               return (
                 <NavLink
                   key={item.to}
@@ -66,9 +46,7 @@ export function AppShell({ children }: PropsWithChildren) {
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-3 rounded-2xl px-4 py-3 text-lg transition',
-                      isActive
-                        ? 'bg-emerald-400/15 text-white'
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white',
+                      isActive ? 'bg-emerald-400/15 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white',
                     )
                   }
                 >
@@ -79,19 +57,10 @@ export function AppShell({ children }: PropsWithChildren) {
             })}
           </nav>
 
-          <div className="mt-8 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-base leading-8 text-amber-100">
-            Rēķinu izsūtīšana pirmajā versijā būs manuāla. Sistēma sagatavos PDF
-            un palīdzēs uzturēt kārtībā statusus un termiņus.
-          </div>
-
           <div className="mt-8 flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-900/70 px-5 py-5">
             <div className="min-w-0">
-              <p className="truncate text-base font-medium text-white">
-                {user?.email ?? 'Nav aktīvas sesijas'}
-              </p>
-              <p className="mt-1 text-sm text-slate-400">
-                {isSupabaseConfigured ? 'Supabase pieslēgts' : 'Gaida .env iestatījumus'}
-              </p>
+              <p className="truncate text-base font-medium text-white">{user?.email ?? 'Nav aktīvas sesijas'}</p>
+              <p className="mt-1 text-sm text-slate-400">{isSupabaseConfigured ? 'Supabase pieslēgts' : 'Gaida .env iestatījumus'}</p>
             </div>
             <button
               type="button"
@@ -104,24 +73,7 @@ export function AppShell({ children }: PropsWithChildren) {
           </div>
         </aside>
 
-        <div className="flex min-h-full flex-col gap-6">
-          <header className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(17,24,39,0.95))] p-6 md:p-8">
-            <div className="max-w-4xl">
-              <p className="text-sm uppercase tracking-[0.24em] text-sky-200/70">
-                Privāts darba režīms
-              </p>
-              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-white">
-                Tava uzskaite vienuviet
-              </h2>
-              <p className="mt-4 text-lg leading-8 text-slate-300">
-                Pamats jau strādā: autentifikācija, profils, klienti un dzīvs
-                deploy. Tālāk būvējam rēķinus, izdevumus un atskaišu loģiku.
-              </p>
-            </div>
-          </header>
-
-          <main>{children}</main>
-        </div>
+        <main>{children}</main>
       </div>
     </div>
   )
