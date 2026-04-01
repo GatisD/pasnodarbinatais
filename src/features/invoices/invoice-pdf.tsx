@@ -1,12 +1,22 @@
 import {
   Document,
+  Font,
   Page,
   StyleSheet,
   Text,
   View,
 } from '@react-pdf/renderer'
 
+import notoSansFont from '@/assets/fonts/NotoSans-Variable.ttf'
 import { formatCurrency, formatDate } from '@/lib/format'
+
+Font.register({
+  family: 'Noto Sans',
+  fonts: [
+    { src: notoSansFont, fontWeight: 400 },
+    { src: notoSansFont, fontWeight: 700 },
+  ],
+})
 
 export type InvoicePdfParty = {
   address?: string | null
@@ -42,7 +52,7 @@ const styles = StyleSheet.create({
   page: {
     backgroundColor: '#ffffff',
     color: '#0f172a',
-    fontFamily: 'Helvetica',
+    fontFamily: 'Noto Sans',
     fontSize: 11,
     lineHeight: 1.45,
     padding: 36,
