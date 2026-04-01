@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 type Client = { id: string; name: string; reg_number: string | null; address: string | null; email: string | null; bank_iban: string | null }
-type Profile = { full_name: string | null; person_code: string | null; address: string | null; email: string | null; bank_iban: string | null }
+type Profile = { full_name: string | null; person_code: string | null; address: string | null; email: string | null; bank_iban: string | null; bank_name: string | null; phone: string | null }
 type Status = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
 type Invoice = { id: string; invoice_number: string | null; issue_date: string; due_date: string; status: Status; subtotal: number; vat_amount: number; vat_rate: number; total: number; notes: string | null; client: Client | null }
 type Item = { description: string; quantity: string; unit: string; unit_price: string }
@@ -97,7 +97,7 @@ export function InvoicesPage() {
 
   async function loadProfile() {
     if (!supabase || !user) return
-    const { data, error } = await supabase.from('profiles').select('full_name, person_code, address, email, bank_iban').eq('id', user.id).maybeSingle()
+    const { data, error } = await supabase.from('profiles').select('full_name, person_code, address, email, bank_iban, bank_name, phone').eq('id', user.id).maybeSingle()
     if (error) return void setFeedback(getFriendlySupabaseError(error.message))
     setProfile(data)
   }

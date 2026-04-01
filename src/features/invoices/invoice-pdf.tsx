@@ -1,11 +1,4 @@
-import {
-  Document,
-  Font,
-  Page,
-  StyleSheet,
-  Text,
-  View,
-} from '@react-pdf/renderer'
+import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 
 import notoSansFont from '@/assets/fonts/NotoSans-Variable.ttf'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -21,8 +14,10 @@ Font.register({
 export type InvoicePdfParty = {
   address?: string | null
   bankIban?: string | null
+  bankName?: string | null
   email?: string | null
   name?: string | null
+  phone?: string | null
   regNumber?: string | null
 }
 
@@ -53,272 +48,418 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     color: '#0f172a',
     fontFamily: 'Noto Sans',
-    fontSize: 11,
+    fontSize: 10,
     lineHeight: 1.45,
-    padding: 36,
+    paddingHorizontal: 28,
+    paddingVertical: 24,
   },
-  header: {
+  topRow: {
     alignItems: 'flex-start',
-    borderBottom: '1 solid #dbe4f0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
-    paddingBottom: 18,
   },
-  brandTitle: {
+  title: {
     color: '#0f172a',
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: 700,
-    marginBottom: 6,
-  },
-  brandSubtitle: {
-    color: '#475569',
-    fontSize: 10,
-    maxWidth: 220,
-  },
-  badge: {
-    backgroundColor: '#dcfce7',
-    borderRadius: 999,
-    color: '#166534',
-    fontSize: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  sectionGrid: {
-    columnGap: 18,
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    flex: 1,
-    padding: 14,
-  },
-  cardLabel: {
-    color: '#64748b',
-    fontSize: 9,
-    letterSpacing: 1,
     marginBottom: 8,
-    textTransform: 'uppercase',
   },
-  cardTitle: {
+  issuerName: {
     color: '#0f172a',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 700,
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  mutedText: {
+  muted: {
     color: '#475569',
     fontSize: 10,
     marginBottom: 2,
   },
-  invoiceMeta: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    color: '#ffffff',
-    marginBottom: 20,
-    padding: 16,
+  metaTable: {
+    minWidth: 210,
   },
-  invoiceMetaRow: {
+  metaRow: {
+    columnGap: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  invoiceMetaLabel: {
-    color: '#94a3b8',
-    fontSize: 10,
-  },
-  invoiceMetaValue: {
-    color: '#ffffff',
-    fontSize: 12,
+  metaLabel: {
+    color: '#0ea5e9',
+    fontSize: 9,
     fontWeight: 700,
   },
-  table: {
-    border: '1 solid #e2e8f0',
-    borderRadius: 14,
-    marginBottom: 18,
-    overflow: 'hidden',
+  metaValue: {
+    color: '#334155',
+    fontSize: 9,
   },
-  tableHeader: {
-    backgroundColor: '#eff6ff',
+  divider: {
+    borderBottom: '1 solid #d5dee7',
+    marginBottom: 16,
+  },
+  infoGrid: {
+    columnGap: 22,
     flexDirection: 'row',
+    marginBottom: 18,
   },
-  tableHeaderCell: {
+  infoBlock: {
+    flex: 1,
+  },
+  sectionTitle: {
+    color: '#64748b',
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: 0.6,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  partyLine: {
     color: '#0f172a',
     fontSize: 10,
+    marginBottom: 3,
+  },
+  serviceTitle: {
+    color: '#334155',
+    fontSize: 11,
     fontWeight: 700,
-    padding: 10,
+    marginBottom: 8,
+  },
+  table: {
+    border: '1 solid #dbe4ee',
+    marginBottom: 14,
+  },
+  tableHeader: {
+    backgroundColor: '#eef2f6',
+    flexDirection: 'row',
+  },
+  headerCell: {
+    color: '#334155',
+    fontSize: 9,
+    fontWeight: 700,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   row: {
     borderTop: '1 solid #e2e8f0',
     flexDirection: 'row',
   },
   cell: {
-    color: '#334155',
-    fontSize: 10,
-    padding: 10,
+    color: '#0f172a',
+    fontSize: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
-  colDescription: {
-    flex: 2.4,
+  descriptionCol: {
+    flex: 2.6,
   },
-  colQty: {
-    flex: 0.7,
+  quantityCol: {
+    flex: 0.8,
   },
-  colUnit: {
-    flex: 0.7,
+  unitCol: {
+    flex: 0.9,
   },
-  colPrice: {
-    flex: 1,
+  priceCol: {
+    flex: 1.1,
   },
-  colTotal: {
-    flex: 1,
+  totalCol: {
+    flex: 1.2,
   },
-  totalsWrap: {
-    alignItems: 'flex-end',
-    marginBottom: 18,
+  alignRight: {
+    textAlign: 'right',
   },
-  totalsCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    minWidth: 220,
-    padding: 14,
-  },
-  totalRow: {
+  summaryRow: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 18,
   },
-  totalLabel: {
-    color: '#475569',
+  amountCard: {
+    minWidth: 230,
+  },
+  amountRow: {
+    borderTop: '1 solid #e2e8f0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+  },
+  amountLabel: {
+    color: '#334155',
     fontSize: 10,
   },
-  totalValue: {
+  amountValue: {
     color: '#0f172a',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
   },
   grandTotal: {
-    borderTop: '1 solid #dbe4f0',
-    marginTop: 6,
-    paddingTop: 8,
-  },
-  grandTotalText: {
-    color: '#0f766e',
-    fontSize: 14,
+    color: '#0f172a',
+    fontSize: 12,
     fontWeight: 700,
   },
-  notesCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 14,
+  wordsWrap: {
+    maxWidth: 260,
+  },
+  wordsTitle: {
+    color: '#475569',
+    fontSize: 9,
+    marginBottom: 4,
+  },
+  wordsValue: {
+    color: '#0f172a',
+    fontSize: 10,
+  },
+  paymentBlock: {
+    marginBottom: 18,
+  },
+  paymentRow: {
+    columnGap: 14,
+    flexDirection: 'row',
+    marginBottom: 3,
+  },
+  paymentLabel: {
+    color: '#0ea5e9',
+    fontSize: 9,
+    fontWeight: 700,
+    width: 120,
+  },
+  paymentValue: {
+    color: '#334155',
+    flex: 1,
+    fontSize: 9,
+  },
+  notesBlock: {
+    marginBottom: 16,
+  },
+  legalNote: {
+    color: '#64748b',
+    fontSize: 8,
+    marginBottom: 18,
   },
   footer: {
-    borderTop: '1 solid #dbe4f0',
+    alignItems: 'flex-end',
+    borderTop: '1 solid #dbe4ee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 14,
+  },
+  footerLeft: {
     color: '#64748b',
-    fontSize: 9,
-    marginTop: 22,
-    paddingTop: 12,
-    textAlign: 'center',
+    fontSize: 8,
+    maxWidth: 300,
+  },
+  footerRight: {
+    color: '#64748b',
+    fontSize: 8,
+    textAlign: 'right',
   },
 })
 
+function formatQuantity(value: number) {
+  return value.toFixed(2)
+}
+
+function joinDefined(parts: Array<string | null | undefined>) {
+  return parts.filter(Boolean).join(', ')
+}
+
+function numberToWordsLv(value: number): string {
+  const ones = [
+    'nulle',
+    'viens',
+    'divi',
+    'trīs',
+    'četri',
+    'pieci',
+    'seši',
+    'septiņi',
+    'astoņi',
+    'deviņi',
+    'desmit',
+    'vienpadsmit',
+    'divpadsmit',
+    'trīspadsmit',
+    'četrpadsmit',
+    'piecpadsmit',
+    'sešpadsmit',
+    'septiņpadsmit',
+    'astoņpadsmit',
+    'deviņpadsmit',
+  ]
+  const tens = ['', '', 'divdesmit', 'trīsdesmit', 'četrdesmit', 'piecdesmit', 'sešdesmit', 'septiņdesmit', 'astoņdesmit', 'deviņdesmit']
+  const hundreds = ['', 'viens simts', 'divi simti', 'trīs simti', 'četri simti', 'pieci simti', 'seši simti', 'septiņi simti', 'astoņi simti', 'deviņi simti']
+
+  if (value < 20) return ones[value]
+  if (value < 100) {
+    const ten = Math.floor(value / 10)
+    const rest = value % 10
+    return rest === 0 ? tens[ten] : `${tens[ten]} ${ones[rest]}`
+  }
+  if (value < 1000) {
+    const hundred = Math.floor(value / 100)
+    const rest = value % 100
+    return rest === 0 ? hundreds[hundred] : `${hundreds[hundred]} ${numberToWordsLv(rest)}`
+  }
+  if (value < 1_000_000) {
+    const thousands = Math.floor(value / 1000)
+    const rest = value % 1000
+    const thousandWord = thousands === 1 ? 'tūkstotis' : 'tūkstoši'
+    const thousandPart = thousands === 1 ? thousandWord : `${numberToWordsLv(thousands)} ${thousandWord}`
+    return rest === 0 ? thousandPart : `${thousandPart} ${numberToWordsLv(rest)}`
+  }
+
+  return String(value)
+}
+
+function amountToWordsLv(value: number) {
+  const euros = Math.floor(value)
+  const cents = Math.round((value - euros) * 100)
+  const centsWord = cents === 1 ? 'cents' : 'centi'
+  return `${numberToWordsLv(euros)} eiro un ${numberToWordsLv(cents)} ${centsWord}`
+}
+
 export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
+  const clientAddress = joinDefined([data.client.address])
+  const issuerAddress = joinDefined([data.profile.address])
+  const issuerFooter = joinDefined([data.profile.regNumber, data.profile.email, data.profile.address])
+
   return (
     <Document title={data.invoiceNumber}>
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
+        <View style={styles.topRow}>
           <View>
-            <Text style={styles.brandTitle}>Rēķins</Text>
-            <Text style={styles.brandSubtitle}>
-              Profesionāls rēķina dokuments pašnodarbinātā darba vajadzībām.
-            </Text>
-          </View>
-          <Text style={styles.badge}>Sagatavots nosūtīšanai</Text>
-        </View>
-
-        <View style={styles.invoiceMeta}>
-          <View style={styles.invoiceMetaRow}>
-            <Text style={styles.invoiceMetaLabel}>Rēķina numurs</Text>
-            <Text style={styles.invoiceMetaValue}>{data.invoiceNumber}</Text>
-          </View>
-          <View style={styles.invoiceMetaRow}>
-            <Text style={styles.invoiceMetaLabel}>Izrakstīšanas datums</Text>
-            <Text style={styles.invoiceMetaValue}>{formatDate(data.issueDate)}</Text>
-          </View>
-          <View style={styles.invoiceMetaRow}>
-            <Text style={styles.invoiceMetaLabel}>Apmaksas termiņš</Text>
-            <Text style={styles.invoiceMetaValue}>{formatDate(data.dueDate)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.sectionGrid}>
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Izrakstītājs</Text>
-            <Text style={styles.cardTitle}>{data.profile.name || 'Pašnodarbinātais'}</Text>
-            {data.profile.regNumber ? <Text style={styles.mutedText}>{data.profile.regNumber}</Text> : null}
-            {data.profile.address ? <Text style={styles.mutedText}>{data.profile.address}</Text> : null}
-            {data.profile.email ? <Text style={styles.mutedText}>{data.profile.email}</Text> : null}
-            {data.profile.bankIban ? <Text style={styles.mutedText}>{data.profile.bankIban}</Text> : null}
+            <Text style={styles.title}>Rēķins</Text>
+            <Text style={styles.issuerName}>{data.profile.name || 'Pašnodarbinātais'}</Text>
+            {data.profile.regNumber ? <Text style={styles.muted}>Reģistrācijas numurs: {data.profile.regNumber}</Text> : null}
+            {data.profile.email ? <Text style={styles.muted}>{data.profile.email}</Text> : null}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Klients</Text>
-            <Text style={styles.cardTitle}>{data.client.name || 'Nav izvēlēts klients'}</Text>
-            {data.client.regNumber ? <Text style={styles.mutedText}>{data.client.regNumber}</Text> : null}
-            {data.client.address ? <Text style={styles.mutedText}>{data.client.address}</Text> : null}
-            {data.client.email ? <Text style={styles.mutedText}>{data.client.email}</Text> : null}
-            {data.client.bankIban ? <Text style={styles.mutedText}>{data.client.bankIban}</Text> : null}
+          <View style={styles.metaTable}>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Rēķina numurs</Text>
+              <Text style={styles.metaValue}>{data.invoiceNumber}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Rēķina datums</Text>
+              <Text style={styles.metaValue}>{formatDate(data.issueDate)}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Maksājuma termiņš</Text>
+              <Text style={styles.metaValue}>{formatDate(data.dueDate)}</Text>
+            </View>
           </View>
         </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.infoGrid}>
+          <View style={styles.infoBlock}>
+            <Text style={styles.sectionTitle}>Klients</Text>
+            <Text style={styles.partyLine}>{data.client.name || 'Klients nav izvēlēts'}</Text>
+            {data.client.regNumber ? <Text style={styles.partyLine}>Reģistrācijas numurs: {data.client.regNumber}</Text> : null}
+            {clientAddress ? <Text style={styles.partyLine}>Adrese: {clientAddress}</Text> : null}
+            {data.client.email ? <Text style={styles.partyLine}>E-pasts: {data.client.email}</Text> : null}
+          </View>
+
+          <View style={styles.infoBlock}>
+            <Text style={styles.sectionTitle}>Izrakstītājs</Text>
+            <Text style={styles.partyLine}>{data.profile.name || 'Pašnodarbinātais'}</Text>
+            {data.profile.regNumber ? <Text style={styles.partyLine}>Reģistrācijas numurs: {data.profile.regNumber}</Text> : null}
+            {issuerAddress ? <Text style={styles.partyLine}>Adrese: {issuerAddress}</Text> : null}
+            {data.profile.email ? <Text style={styles.partyLine}>E-pasts: {data.profile.email}</Text> : null}
+            {data.profile.phone ? <Text style={styles.partyLine}>Telefons: {data.profile.phone}</Text> : null}
+          </View>
+        </View>
+
+        <Text style={styles.serviceTitle}>Pakalpojumi</Text>
 
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colDescription]}>Apraksts</Text>
-            <Text style={[styles.tableHeaderCell, styles.colQty]}>Daudz.</Text>
-            <Text style={[styles.tableHeaderCell, styles.colUnit]}>Vien.</Text>
-            <Text style={[styles.tableHeaderCell, styles.colPrice]}>Cena</Text>
-            <Text style={[styles.tableHeaderCell, styles.colTotal]}>Kopā</Text>
+            <Text style={[styles.headerCell, styles.descriptionCol]}>Nosaukums</Text>
+            <Text style={[styles.headerCell, styles.quantityCol, styles.alignRight]}>Daudzums</Text>
+            <Text style={[styles.headerCell, styles.unitCol]}>Mērvienība</Text>
+            <Text style={[styles.headerCell, styles.priceCol, styles.alignRight]}>Cena</Text>
+            <Text style={[styles.headerCell, styles.totalCol, styles.alignRight]}>Summa, euro</Text>
           </View>
 
           {data.items.map((item, index) => (
             <View key={`${item.description}-${index}`} style={styles.row}>
-              <Text style={[styles.cell, styles.colDescription]}>{item.description}</Text>
-              <Text style={[styles.cell, styles.colQty]}>{item.quantity.toFixed(2)}</Text>
-              <Text style={[styles.cell, styles.colUnit]}>{item.unit}</Text>
-              <Text style={[styles.cell, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
-              <Text style={[styles.cell, styles.colTotal]}>{formatCurrency(item.total)}</Text>
+              <Text style={[styles.cell, styles.descriptionCol]}>{item.description}</Text>
+              <Text style={[styles.cell, styles.quantityCol, styles.alignRight]}>{formatQuantity(item.quantity)}</Text>
+              <Text style={[styles.cell, styles.unitCol]}>{item.unit}</Text>
+              <Text style={[styles.cell, styles.priceCol, styles.alignRight]}>{formatCurrency(item.unitPrice)}</Text>
+              <Text style={[styles.cell, styles.totalCol, styles.alignRight]}>{formatCurrency(item.total)}</Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.totalsWrap}>
-          <View style={styles.totalsCard}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Starpsumma</Text>
-              <Text style={styles.totalValue}>{formatCurrency(data.subtotal)}</Text>
+        <View style={styles.summaryRow}>
+          <View style={styles.wordsWrap}>
+            <Text style={styles.wordsTitle}>Summa vārdiem</Text>
+            <Text style={styles.wordsValue}>{amountToWordsLv(data.total)}</Text>
+          </View>
+
+          <View style={styles.amountCard}>
+            <View style={styles.amountRow}>
+              <Text style={styles.amountLabel}>Starpsumma</Text>
+              <Text style={styles.amountValue}>{formatCurrency(data.subtotal)}</Text>
             </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>PVN ({data.vatRateLabel})</Text>
-              <Text style={styles.totalValue}>{formatCurrency(data.vatAmount)}</Text>
+            <View style={styles.amountRow}>
+              <Text style={styles.amountLabel}>PVN ({data.vatRateLabel})</Text>
+              <Text style={styles.amountValue}>{formatCurrency(data.vatAmount)}</Text>
             </View>
-            <View style={[styles.totalRow, styles.grandTotal]}>
-              <Text style={styles.grandTotalText}>Kopā</Text>
-              <Text style={styles.grandTotalText}>{formatCurrency(data.total)}</Text>
+            <View style={styles.amountRow}>
+              <Text style={styles.grandTotal}>Summa apmaksai, euro</Text>
+              <Text style={styles.grandTotal}>{formatCurrency(data.total)}</Text>
             </View>
           </View>
         </View>
 
+        <View style={styles.paymentBlock}>
+          <Text style={styles.sectionTitle}>Norēķinu rekvizīti</Text>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Piegādātājs</Text>
+            <Text style={styles.paymentValue}>{data.profile.name || 'Pašnodarbinātais'}</Text>
+          </View>
+          {data.profile.regNumber ? (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Reģistrācijas numurs</Text>
+              <Text style={styles.paymentValue}>{data.profile.regNumber}</Text>
+            </View>
+          ) : null}
+          {issuerAddress ? (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Adrese</Text>
+              <Text style={styles.paymentValue}>{issuerAddress}</Text>
+            </View>
+          ) : null}
+          {data.profile.bankName ? (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Bankas nosaukums</Text>
+              <Text style={styles.paymentValue}>{data.profile.bankName}</Text>
+            </View>
+          ) : null}
+          {data.profile.bankIban ? (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Konta numurs</Text>
+              <Text style={styles.paymentValue}>{data.profile.bankIban}</Text>
+            </View>
+          ) : null}
+        </View>
+
         {data.notes ? (
-          <View style={styles.notesCard}>
-            <Text style={styles.cardLabel}>Piezīmes</Text>
-            <Text style={styles.mutedText}>{data.notes}</Text>
+          <View style={styles.notesBlock}>
+            <Text style={styles.sectionTitle}>Piezīmes</Text>
+            <Text style={styles.wordsValue}>{data.notes}</Text>
           </View>
         ) : null}
 
-        <Text style={styles.footer}>
-          Šis dokuments ir ģenerēts no lietotnes “Pašnodarbinātā uzskaite”.
-        </Text>
+        <Text style={styles.legalNote}>Dokuments ir sagatavots elektroniski un ir derīgs bez paraksta.</Text>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerLeft}>{issuerFooter || 'Pašnodarbinātā rekvizīti aizpildāmi profilā.'}</Text>
+          <Text style={styles.footerRight}>Rēķins sagatavots lietotnē{"\n"}Pašnodarbinātā uzskaite</Text>
+        </View>
       </Page>
     </Document>
   )
