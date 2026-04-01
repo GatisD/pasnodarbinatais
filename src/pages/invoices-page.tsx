@@ -1,15 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, FileText, Plus, Trash2 } from 'lucide-react'
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
+import {
+  CheckCircle2,
+  Download,
+  Eye,
+  FileText,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
+import {
+  InvoicePdfDocument,
+  type InvoicePdfData,
+} from '@/features/invoices/invoice-pdf'
 import { formatCurrency, formatDate } from '@/lib/format'
-import { roundMoney } from '@/lib/numbers'
+import { parseNumber, roundMoney } from '@/lib/numbers'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 
 type ClientOption = {
+  address: string | null
+  bank_iban: string | null
+  email: string | null
   id: string
   name: string
+  reg_number: string | null
 }
 
 type InvoiceStatus = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
@@ -31,6 +47,14 @@ type InvoiceItemForm = {
   unit_price: string
 }
 
+type ProfileSnapshot = {
+  address: string | null
+  bank_iban: string | null
+  email: string | null
+  full_name: string | null
+  person_code: string | null
+}
+
 const emptyItem = (): InvoiceItemForm => ({
   description: '',
   quantity: '1',
@@ -41,6 +65,7 @@ const emptyItem = (): InvoiceItemForm => ({
 export function InvoicesPage() {
   const { user } = useAuth()
   const [clients, setClients] = useState<ClientOption[]>([])
+  const [profile, setProfile] = useState<ProfileSnapshot | null>(null)
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [clientId, setClientId] = useState('')
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10))
@@ -51,15 +76,21 @@ export function InvoicesPage() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [showPreview, setShowPreview] = useState(true)
 
   useEffect(() => {
-    void Promise.all([loadClients(), loadInvoices()])
+    void Promise.all([loadClients(), loadInvoices(), loadProfile()])
   }, [user?.id])
+
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === clientId) ?? null,
+    [clientId, clients],
+  )
 
   const calculations = useMemo(() => {
     const preparedItems = items.map((item) => {
-      const quantity = roundMoney(Number(item.quantity.replace(',', '.')) || 0)
-      const unitPrice = roundMoney(Number(item.unit_price.replace(',', '.')) || 0)
+      const quantity = roundMoney(parseNumber(item.quantity))
+      const unitPrice = roundMoney(parseNumber(item.unit_price))
       const total = roundMoney(quantity * unitPrice)
 
       return {
@@ -71,7 +102,7 @@ export function InvoicesPage() {
     })
 
     const subtotal = roundMoney(preparedItems.reduce((sum, item) => sum + item.total, 0))
-    const vatRateValue = Number(vatRate.replace(',', '.')) || 0
+    const vatRateValue = parseNumber(vatRate)
     const vatAmount = roundMoney(subtotal * (vatRateValue / 100))
     const total = roundMoney(subtotal + vatAmount)
 
@@ -84,6 +115,50 @@ export function InvoicesPage() {
     }
   }, [items, vatRate])
 
+  const draftInvoiceNumber = useMemo(() => {
+    const nextSequence = invoices.length + 1
+    const year = new Date(issueDate).getFullYear()
+
+    return `R-${year}-${String(nextSequence).padStart(3, '0')}`
+  }, [invoices.length, issueDate])
+
+  const pdfData: InvoicePdfData = useMemo(
+    () => ({
+      client: {
+        address: selectedClient?.address ?? null,
+        bankIban: selectedClient?.bank_iban ?? null,
+        email: selectedClient?.email ?? null,
+        name: selectedClient?.name ?? 'Klients nav izvēlēts',
+        regNumber: selectedClient?.reg_number ?? null,
+      },
+      dueDate,
+      invoiceNumber: draftInvoiceNumber,
+      issueDate,
+      items: calculations.preparedItems
+        .filter((item) => item.description.trim().length > 0)
+        .map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          total: item.total,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+        })),
+      notes,
+      profile: {
+        address: profile?.address ?? null,
+        bankIban: profile?.bank_iban ?? null,
+        email: profile?.email ?? user?.email ?? null,
+        name: profile?.full_name ?? 'Pašnodarbinātais',
+        regNumber: profile?.person_code ?? null,
+      },
+      subtotal: calculations.subtotal,
+      total: calculations.total,
+      vatAmount: calculations.vatAmount,
+      vatRateLabel: `${calculations.vatRateValue.toFixed(0)}%`,
+    }),
+    [calculations, draftInvoiceNumber, dueDate, issueDate, notes, profile, selectedClient, user?.email],
+  )
+
   async function loadClients() {
     if (!supabase || !user) {
       return
@@ -91,7 +166,7 @@ export function InvoicesPage() {
 
     const { data, error } = await supabase
       .from('clients')
-      .select('id, name')
+      .select('id, name, reg_number, address, email, bank_iban')
       .eq('user_id', user.id)
       .order('name')
 
@@ -101,6 +176,25 @@ export function InvoicesPage() {
     }
 
     setClients(data ?? [])
+  }
+
+  async function loadProfile() {
+    if (!supabase || !user) {
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, person_code, address, email, bank_iban')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (error) {
+      setFeedback(getFriendlySupabaseError(error.message))
+      return
+    }
+
+    setProfile(data)
   }
 
   async function loadInvoices() {
@@ -175,7 +269,9 @@ export function InvoicesPage() {
       .single()
 
     if (invoiceError || !invoice) {
-      setFeedback(getFriendlySupabaseError(invoiceError?.message ?? 'Neizdevās saglabāt rēķinu.'))
+      setFeedback(
+        getFriendlySupabaseError(invoiceError?.message ?? 'Neizdevās saglabāt rēķinu.'),
+      )
       setIsSaving(false)
       return
     }
@@ -221,11 +317,13 @@ export function InvoicesPage() {
   }
 
   function removeItem(index: number) {
-    setItems((current) => (current.length === 1 ? current : current.filter((_, i) => i !== index)))
+    setItems((current) =>
+      current.length === 1 ? current : current.filter((_, itemIndex) => itemIndex !== index),
+    )
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+    <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -304,7 +402,7 @@ export function InvoicesPage() {
             {items.map((item, index) => (
               <div
                 key={index}
-                className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/60 p-4 md:grid-cols-[1.5fr_0.5fr_0.45fr_0.65fr_auto]"
+                className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/60 p-4 md:grid-cols-[1.45fr_0.5fr_0.45fr_0.65fr_auto]"
               >
                 <input
                   value={item.description}
@@ -356,25 +454,55 @@ export function InvoicesPage() {
           <div className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/70 p-5 text-base md:grid-cols-3">
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Starpsumma</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{formatCurrency(calculations.subtotal)}</p>
+              <p className="mt-2 text-2xl font-semibold text-white">
+                {formatCurrency(calculations.subtotal)}
+              </p>
             </div>
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-slate-500">PVN</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{formatCurrency(calculations.vatAmount)}</p>
+              <p className="mt-2 text-2xl font-semibold text-white">
+                {formatCurrency(calculations.vatAmount)}
+              </p>
             </div>
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Kopā</p>
-              <p className="mt-2 text-2xl font-semibold text-emerald-300">{formatCurrency(calculations.total)}</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-300">
+                {formatCurrency(calculations.total)}
+              </p>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="inline-flex rounded-2xl bg-emerald-400 px-5 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-          >
-            {isSaving ? 'Saglabājam...' : 'Saglabāt rēķinu'}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="inline-flex rounded-2xl bg-emerald-400 px-5 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+            >
+              {isSaving ? 'Saglabājam...' : 'Saglabāt rēķinu'}
+            </button>
+
+            <PDFDownloadLink
+              document={<InvoicePdfDocument data={pdfData} />}
+              fileName={`${draftInvoiceNumber}.pdf`}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-100 transition hover:bg-white/10"
+            >
+              {({ loading }) => (
+                <>
+                  <Download className="h-4 w-4" />
+                  {loading ? 'Gatavojam PDF...' : 'Lejupielādēt PDF'}
+                </>
+              )}
+            </PDFDownloadLink>
+
+            <button
+              type="button"
+              onClick={() => setShowPreview((current) => !current)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-100 transition hover:bg-white/10"
+            >
+              <Eye className="h-4 w-4" />
+              {showPreview ? 'Paslēpt preview' : 'Rādīt preview'}
+            </button>
+          </div>
 
           {feedback ? (
             <div className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">
@@ -384,61 +512,89 @@ export function InvoicesPage() {
         </form>
       </section>
 
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-2xl font-semibold text-white">Rēķinu saraksts</h3>
-            <p className="mt-2 text-base leading-8 text-slate-300">
-              Te redzēsi jaunākos rēķinus, statusus un kopsummas. PDF un e-pasta plūsma nāks nākamajā solī.
-            </p>
+      <div className="grid gap-6">
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-semibold text-white">Rēķina preview</h3>
+              <p className="mt-2 text-base leading-8 text-slate-300">
+                Šeit redzēsi melnraksta PDF izskatu pirms lejupielādes vai nosūtīšanas.
+              </p>
+            </div>
+            <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
+              <Eye className="h-5 w-5" />
+            </div>
           </div>
-          <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-        </div>
 
-        {isLoading ? (
-          <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">
-            Ielādējam rēķinus...
-          </div>
-        ) : invoices.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">
-            Rēķinu vēl nav. Izveido pirmo rēķinu no kreisās puses formas.
-          </div>
-        ) : (
-          <div className="mt-6 space-y-4">
-            {invoices.map((invoice) => (
-              <article
-                key={invoice.id}
-                className="rounded-3xl border border-white/10 bg-slate-900/70 p-5"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
-                      {invoice.invoice_number ?? 'Jauns rēķins'}
-                    </p>
-                    <h4 className="mt-2 text-xl font-semibold text-white">
-                      {invoice.client_name ?? 'Bez klienta nosaukuma'}
-                    </h4>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Izrakstīts: {formatDate(invoice.issue_date)} | Termiņš: {formatDate(invoice.due_date)}
-                    </p>
-                  </div>
+          {showPreview ? (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
+              <PDFViewer width="100%" height={640} showToolbar>
+                <InvoicePdfDocument data={pdfData} />
+              </PDFViewer>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">
+              Preview ir paslēpts. Vari to atkal ieslēgt ar pogu “Rādīt preview”.
+            </div>
+          )}
+        </section>
 
-                  <div className="text-right">
-                    <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
-                      {invoice.status}
-                    </span>
-                    <p className="mt-3 text-2xl font-semibold text-white">
-                      {formatCurrency(invoice.total)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-semibold text-white">Rēķinu saraksts</h3>
+              <p className="mt-2 text-base leading-8 text-slate-300">
+                Te redzēsi jaunākos rēķinus, statusus un kopsummas. Statusu maiņu un PDF no saglabātajiem rēķiniem pievienosim nākamajā solī.
+              </p>
+            </div>
+            <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
           </div>
-        )}
-      </section>
+
+          {isLoading ? (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">
+              Ielādējam rēķinus...
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">
+              Rēķinu vēl nav. Izveido pirmo rēķinu no kreisās puses formas.
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              {invoices.map((invoice) => (
+                <article
+                  key={invoice.id}
+                  className="rounded-3xl border border-white/10 bg-slate-900/70 p-5"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
+                        {invoice.invoice_number ?? 'Jauns rēķins'}
+                      </p>
+                      <h4 className="mt-2 text-xl font-semibold text-white">
+                        {invoice.client_name ?? 'Bez klienta nosaukuma'}
+                      </h4>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Izrakstīts: {formatDate(invoice.issue_date)} | Termiņš: {formatDate(invoice.due_date)}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">
+                        {invoice.status}
+                      </span>
+                      <p className="mt-3 text-2xl font-semibold text-white">
+                        {formatCurrency(invoice.total)}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   )
 }
