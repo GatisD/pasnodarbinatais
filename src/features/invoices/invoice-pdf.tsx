@@ -65,12 +65,6 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     marginBottom: 8,
   },
-  issuerName: {
-    color: '#0f172a',
-    fontSize: 11,
-    fontWeight: 700,
-    marginBottom: 3,
-  },
   muted: {
     color: '#475569',
     fontSize: 10,
@@ -329,9 +323,8 @@ export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
         <View style={styles.topRow}>
           <View>
             <Text style={styles.title}>Rēķins</Text>
-            <Text style={styles.issuerName}>{data.profile.name || 'Pašnodarbinātais'}</Text>
             {data.profile.regNumber ? <Text style={styles.muted}>Reģistrācijas numurs: {data.profile.regNumber}</Text> : null}
-            {data.profile.email ? <Text style={styles.muted}>{data.profile.email}</Text> : null}
+            {data.profile.email ? <Text style={styles.muted}>E-pasts: {data.profile.email}</Text> : null}
           </View>
 
           <View style={styles.metaTable}>

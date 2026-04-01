@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/auth-provider'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
+import { calculateMonthlySelfEmployedTaxes } from '@/lib/tax'
 
 type InvoiceRow = {
   client_name: string | null
@@ -91,13 +92,15 @@ export function DashboardPage() {
     const currentIncome = chartData.find((entry) => entry.monthKey === selectedMonth)?.income ?? 0
     const currentExpenses = chartData.find((entry) => entry.monthKey === selectedMonth)?.expenses ?? 0
     const taxableIncome = currentIncome - currentExpenses
-    const estimatedTaxes = taxableIncome > 0 ? taxableIncome * 0.255 : 0
+    const taxEstimate = calculateMonthlySelfEmployedTaxes(taxableIncome)
 
     return {
       currentExpenses,
       currentIncome,
-      estimatedTaxes,
+      estimatedTaxes: taxEstimate.totalTaxes,
       taxableIncome,
+      vsaoi: taxEstimate.vsaoi,
+      iin: taxEstimate.iin,
     }
   }, [chartData, selectedMonth])
 
