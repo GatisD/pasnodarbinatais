@@ -48,6 +48,7 @@ export function InvoicesPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
   const [loadingEditorId, setLoadingEditorId] = useState<string | null>(null)
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7))
@@ -221,6 +222,36 @@ export function InvoicesPage() {
     setUpdatingId(null)
   }
 
+  async function handleDelete(invoice: Invoice) {
+    if (!supabase) return
+    const confirmed = window.confirm(`Dzēst rēķinu ${invoice.invoice_number ?? 'bez numura'}?`)
+    if (!confirmed) return
+
+    setDeletingInvoiceId(invoice.id)
+    setFeedback(null)
+
+    const { error: itemError } = await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
+    if (itemError) {
+      setFeedback(getFriendlySupabaseError(itemError.message))
+      return void setDeletingInvoiceId(null)
+    }
+
+    const { error: invoiceError } = await supabase.from('invoices').delete().eq('id', invoice.id)
+    if (invoiceError) {
+      setFeedback(getFriendlySupabaseError(invoiceError.message))
+      return void setDeletingInvoiceId(null)
+    }
+
+    if (editingInvoiceId === invoice.id) {
+      resetComposer()
+      setShowComposer(false)
+    }
+
+    setInvoices((current) => current.filter((row) => row.id !== invoice.id))
+    setFeedback('Rēķins dzēsts.')
+    setDeletingInvoiceId(null)
+  }
+
   async function handleDownload(invoice: Invoice) {
     if (!supabase || !user) return
     setDownloadingId(invoice.id)
@@ -333,7 +364,7 @@ export function InvoicesPage() {
                   <div className="min-w-0"><p className="truncate text-lg font-semibold text-white">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-1 truncate text-sm text-slate-400">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
                   <div><p className="text-base font-semibold text-white">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-1 text-sm text-slate-400">Termiņš: {formatDate(invoice.due_date)}</p></div>
                   <div className="space-y-2"><span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em]', pill[invoice.status])}>{labels[invoice.status]}</span><div className="relative"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-emerald-400/50 disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></div>
-                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold text-white">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button></div></div>
+                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold text-white">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
                 </article>
               ))}
             </div>
