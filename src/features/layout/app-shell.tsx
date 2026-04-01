@@ -106,38 +106,17 @@ export function AppShell({ children }: PropsWithChildren) {
 
         <div className="flex min-h-full flex-col gap-6">
           <header className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(17,24,39,0.95))] p-6 md:p-8">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-              <div className="max-w-3xl">
-                <p className="text-sm uppercase tracking-[0.24em] text-sky-200/70">
-                  Privāts darba režīms
-                </p>
-                <h2 className="mt-3 text-4xl font-semibold tracking-tight text-white">
-                  Tava uzskaite vienuviet
-                </h2>
-                <p className="mt-4 text-lg leading-8 text-slate-300">
-                  Sākam ar drošu autentifikāciju, profilu un lietotnes karkasu.
-                  Tālāk pievienosim rēķinus, izdevumus un atskaišu loģiku.
-                </p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 xl:min-w-[520px]">
-                <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-base text-slate-300">
-                  <span className="block text-sm uppercase tracking-[0.18em] text-slate-400">
-                    Subdomēns
-                  </span>
-                  <span className="mt-2 block break-all font-medium text-white">
-                    pasnodarbinats.virtualamaksla.lv
-                  </span>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-base text-slate-300">
-                  <span className="block text-sm uppercase tracking-[0.18em] text-slate-400">
-                    Hostings
-                  </span>
-                  <span className="mt-2 block font-medium text-white">
-                    Vercel + Supabase
-                  </span>
-                </div>
-              </div>
+            <div className="max-w-4xl">
+              <p className="text-sm uppercase tracking-[0.24em] text-sky-200/70">
+                Privāts darba režīms
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-white">
+                Tava uzskaite vienuviet
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-300">
+                Pamats jau strādā: autentifikācija, profils, klienti un dzīvs
+                deploy. Tālāk būvējam rēķinus, izdevumus un atskaišu loģiku.
+              </p>
             </div>
           </header>
 
