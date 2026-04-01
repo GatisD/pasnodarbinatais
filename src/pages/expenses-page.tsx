@@ -5,6 +5,7 @@ export function ExpensesPage() {
     <PlaceholderSection
       title="Izdevumi"
       description="Šeit būs izdevumu ievade, filtri, kategorijas un čeku augšupielāde uz Supabase Storage."
+      note="Kad klientu un profila plūsma būs pilnībā nostabilizēta, šis būs nākamais praktiskais modulis aiz rēķiniem."
     />
   )
 }

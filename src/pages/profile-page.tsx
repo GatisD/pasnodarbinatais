@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { useAuth } from '@/features/auth/auth-provider'
+import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 
 type ProfileFormState = {
@@ -51,7 +52,7 @@ export function ProfilePage() {
         }
 
         if (error) {
-          setFeedback(error.message)
+          setFeedback(getFriendlySupabaseError(error.message))
           setIsLoading(false)
           return
         }
@@ -105,7 +106,7 @@ export function ProfilePage() {
     })
 
     if (error) {
-      setFeedback(error.message)
+      setFeedback(getFriendlySupabaseError(error.message))
       setIsSaving(false)
       return
     }
@@ -127,7 +128,7 @@ export function ProfilePage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h3 className="text-2xl font-semibold text-white">Profils</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+          <p className="mt-2 max-w-2xl text-base leading-8 text-slate-300">
             Šie dati tiks izmantoti rēķinos, atskaitēs un vispārējā pašnodarbinātā
             uzskaites plūsmā.
           </p>
@@ -185,7 +186,7 @@ export function ProfilePage() {
             onChange={(value) => setForm((current) => ({ ...current, address: value }))}
           />
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 flex flex-wrap gap-3">
             <button
               type="submit"
               disabled={isSaving}

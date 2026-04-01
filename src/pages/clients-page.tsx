@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
+import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 
 type ClientRecord = {
@@ -56,7 +57,7 @@ export function ClientsPage() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      setFeedback(error.message)
+      setFeedback(getFriendlySupabaseError(error.message))
       setIsLoading(false)
       return
     }
@@ -91,7 +92,7 @@ export function ClientsPage() {
     const { error } = await request
 
     if (error) {
-      setFeedback(error.message)
+      setFeedback(getFriendlySupabaseError(error.message))
       setIsSaving(false)
       return
     }
@@ -121,7 +122,7 @@ export function ClientsPage() {
       .eq('user_id', user.id)
 
     if (error) {
-      setFeedback(error.message)
+      setFeedback(getFriendlySupabaseError(error.message))
       return
     }
 
@@ -146,14 +147,14 @@ export function ClientsPage() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+    <div className="grid gap-6 xl:grid-cols-[460px_1fr]">
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-2xl font-semibold text-white">
               {editingId ? 'Rediģēt klientu' : 'Pievienot klientu'}
             </h3>
-            <p className="mt-2 text-sm leading-7 text-slate-300">
+            <p className="mt-2 text-base leading-8 text-slate-300">
               Saglabā klientu rekvizītus, lai rēķina izveide vēlāk būtu ātra un
               bez atkārtotas manuālas rakstīšanas.
             </p>
@@ -223,7 +224,7 @@ export function ClientsPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-2xl font-semibold text-white">Klientu saraksts</h3>
-            <p className="mt-2 text-sm leading-7 text-slate-300">
+            <p className="mt-2 text-base leading-8 text-slate-300">
               Šis saraksts vēlāk kalpos kā pamats rēķinu formai un ātrai klientu atlasei.
             </p>
           </div>
@@ -237,7 +238,7 @@ export function ClientsPage() {
             Ielādējam klientus...
           </div>
         ) : clients.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-sm leading-6 text-slate-400">
+          <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">
             Klientu vēl nav. Pievieno pirmo klientu, lai varam nākamajā solī ķerties klāt rēķiniem.
           </div>
         ) : (

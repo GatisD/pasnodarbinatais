@@ -41,14 +41,14 @@ export function AuthPage() {
     setFeedback(
       mode === 'login'
         ? 'Ielogošanās veiksmīga.'
-        : 'Konts izveidots. Ja vajadzīgs, apstiprini e-pastu un turpini uz profila aizpildi.',
+        : 'Konts izveidots. Ja vajag, apstiprini e-pastu un turpini ar profila aizpildi.',
     )
     setIsSubmitting(false)
   }
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100 md:px-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(45,212,191,0.16),_transparent_38%),linear-gradient(135deg,_rgba(15,23,42,0.95),_rgba(2,6,23,0.98))] p-8 lg:p-10">
           <div className="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1 text-sm font-medium text-emerald-200">
             Privāta grāmatvedības lietotne
@@ -56,10 +56,10 @@ export function AuthPage() {
           <h1 className="mt-6 max-w-2xl text-4xl font-semibold tracking-tight text-white md:text-5xl">
             Ienāc savā darba telpā un turi rēķinus, izdevumus un atskaites kārtībā.
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300">
-            Šī sistēma ir paredzēta personīgai lietošanai: visi dati glabājas
-            Supabase, piekļuve ir tikai ar autentifikāciju, un publiskai meklēšanai
-            lietotne netiek atvērta.
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
+            Šī sistēma ir veidota privātai lietošanai: dati glabājas Supabase,
+            piekļuve ir tikai ar autentifikāciju, un lapa nav paredzēta publiskai
+            indeksēšanai.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -77,7 +77,7 @@ export function AuthPage() {
             />
             <FeatureCard
               title="Privāts hostings"
-              description="Vercel + Supabase ar noindex un pieslēgšanos tikai caur login."
+              description="Vercel un Supabase ar noindex un pieslēgšanos tikai caur login."
             />
           </div>
         </section>
@@ -123,11 +123,7 @@ export function AuthPage() {
               disabled={isSubmitting || !isSupabaseConfigured}
               className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
             >
-              {isSubmitting
-                ? 'Lūdzu uzgaidi...'
-                : mode === 'login'
-                  ? 'Ielogoties'
-                  : 'Izveidot kontu'}
+              {isSubmitting ? 'Lūdzu uzgaidi...' : mode === 'login' ? 'Ielogoties' : 'Izveidot kontu'}
             </button>
           </form>
 

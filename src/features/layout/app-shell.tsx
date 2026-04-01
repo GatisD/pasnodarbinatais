@@ -38,24 +38,24 @@ export function AppShell({ children }: PropsWithChildren) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto grid min-h-screen w-full max-w-7xl gap-6 px-4 py-4 md:px-6 lg:grid-cols-[280px_1fr] lg:px-8 lg:py-8">
-        <aside className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
-          <div className="border-b border-white/10 pb-5">
+      <div className="mx-auto grid min-h-screen w-full max-w-[1440px] gap-6 px-4 py-4 md:px-6 lg:grid-cols-[300px_1fr] lg:px-8 lg:py-8">
+        <aside className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur">
+          <div className="border-b border-white/10 pb-6">
             <Link to="/" className="block">
               <p className="text-xs uppercase tracking-[0.32em] text-sky-200/70">
                 Pašnodarbinātais
               </p>
-              <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white">
-                Self Employed
+              <h1 className="mt-3 text-[2rem] font-semibold tracking-tight text-white">
+                Pašnodarbinātā uzskaite
               </h1>
             </Link>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Privāta finanšu darba telpa ar Supabase datiem, moderniem rēķiniem
-              un vienkāršu ikdienas uzskaiti.
+            <p className="mt-4 text-[15px] leading-8 text-slate-300">
+              Privāta finanšu darba telpa ar klientiem, rēķiniem, izdevumiem un
+              atskaitēm vienuviet.
             </p>
           </div>
 
-          <nav className="mt-5 space-y-2">
+          <nav className="mt-6 space-y-2">
             {navigationItems.map((item) => {
               const Icon = item.icon
 
@@ -65,66 +65,77 @@ export function AppShell({ children }: PropsWithChildren) {
                   to={item.to}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition',
+                      'flex items-center gap-3 rounded-2xl px-4 py-3 text-lg transition',
                       isActive
                         ? 'bg-emerald-400/15 text-white'
                         : 'text-slate-300 hover:bg-white/5 hover:text-white',
                     )
                   }
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-5 w-5" />
                   <span>{item.label}</span>
                 </NavLink>
               )
             })}
           </nav>
 
-          <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
-            Rēķinu izsūtīšana v1 būs manuāla. Sistēma sagatavos PDF un palīdzēs
-            tev saglabāt statusus un termiņus.
+          <div className="mt-8 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-base leading-8 text-amber-100">
+            Rēķinu izsūtīšana pirmajā versijā būs manuāla. Sistēma sagatavos PDF
+            un palīdzēs uzturēt kārtībā statusus un termiņus.
           </div>
 
-          <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4">
-            <div>
-              <p className="text-sm font-medium text-white">
+          <div className="mt-8 flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-900/70 px-5 py-5">
+            <div className="min-w-0">
+              <p className="truncate text-base font-medium text-white">
                 {user?.email ?? 'Nav aktīvas sesijas'}
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="mt-1 text-sm text-slate-400">
                 {isSupabaseConfigured ? 'Supabase pieslēgts' : 'Gaida .env iestatījumus'}
               </p>
             </div>
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10"
               aria-label="Izlogoties"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
         </aside>
 
         <div className="flex min-h-full flex-col gap-6">
-          <header className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(17,24,39,0.95))] p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
+          <header className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(17,24,39,0.95))] p-6 md:p-8">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+              <div className="max-w-3xl">
                 <p className="text-sm uppercase tracking-[0.24em] text-sky-200/70">
                   Privāts darba režīms
                 </p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">
+                <h2 className="mt-3 text-4xl font-semibold tracking-tight text-white">
                   Tava uzskaite vienuviet
                 </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                <p className="mt-4 text-lg leading-8 text-slate-300">
                   Sākam ar drošu autentifikāciju, profilu un lietotnes karkasu.
                   Tālāk pievienosim rēķinus, izdevumus un atskaišu loģiku.
                 </p>
               </div>
-              <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  Subdomēns: <span className="text-white">pasnodarbinats.virtualamaksla.lv</span>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:min-w-[520px]">
+                <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-base text-slate-300">
+                  <span className="block text-sm uppercase tracking-[0.18em] text-slate-400">
+                    Subdomēns
+                  </span>
+                  <span className="mt-2 block break-all font-medium text-white">
+                    pasnodarbinats.virtualamaksla.lv
+                  </span>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  Hostings: <span className="text-white">Vercel + Supabase</span>
+                <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-base text-slate-300">
+                  <span className="block text-sm uppercase tracking-[0.18em] text-slate-400">
+                    Hostings
+                  </span>
+                  <span className="mt-2 block font-medium text-white">
+                    Vercel + Supabase
+                  </span>
                 </div>
               </div>
             </div>
