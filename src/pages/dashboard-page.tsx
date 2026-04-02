@@ -221,10 +221,10 @@ export function DashboardPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="pipboy-accent text-sm uppercase tracking-[0.34em]">Pārskata periods</p>
-            <h2 className="mt-2 text-3xl font-semibold text-[#39ff14] drop-shadow-[0_0_10px_rgba(57,255,20,0.18)]">
+            <h2 className="pipboy-accent-strong mt-2 text-3xl font-semibold">
               {monthLabel}
             </h2>
-            <p className="mt-3 max-w-3xl text-base leading-8 text-[rgba(184,255,184,0.78)]">
+            <p className="pipboy-subtle mt-3 max-w-3xl text-base leading-8">
               Šeit redzi atlasītā mēneša ieņēmumus, izdevumus un provizorisko nodokļu ainu.
               Zemāk vari salīdzināt pēdējo 12 mēnešu dinamiku.
             </p>
@@ -235,7 +235,7 @@ export function DashboardPage() {
               type="month"
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.84)] px-4 py-3 text-[#efffeb] outline-none transition focus:border-[rgba(57,255,20,0.42)]"
+              className="pipboy-input px-4 py-3"
             />
             <button
               type="button"
@@ -259,17 +259,17 @@ export function DashboardPage() {
           const Icon = card.icon
 
           return (
-            <article key={card.label} className="pipboy-panel rounded-[28px] p-5">
+            <article key={card.label} className="pipboy-stat p-5">
               <div className="flex items-start justify-between gap-4">
                 <p className="text-lg font-medium text-[rgba(214,255,220,0.92)]">{card.label}</p>
                 <div className="rounded-full border border-[rgba(0,255,70,0.18)] bg-[rgba(0,255,65,0.08)] p-3 text-[#7cff7c]">
                   <Icon className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-8 text-5xl font-semibold tracking-tight text-[#39ff14] drop-shadow-[0_0_12px_rgba(57,255,20,0.18)]">
+              <p className="pipboy-stat-value mt-8 text-5xl font-semibold tracking-tight">
                 {isLoading ? '...' : card.value}
               </p>
-              <p className="mt-3 text-sm uppercase tracking-[0.22em] text-[rgba(184,255,184,0.52)]">
+              <p className="pipboy-stat-label mt-3 text-sm">
                 {card.hint}
               </p>
             </article>
@@ -281,8 +281,8 @@ export function DashboardPage() {
         <div className="pipboy-panel rounded-[28px] p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-2xl font-semibold text-[#39ff14]">Pēdējo 12 mēnešu dinamika</h3>
-              <p className="mt-2 text-base leading-8 text-[rgba(184,255,184,0.78)]">
+              <h3 className="pipboy-accent-strong text-2xl font-semibold">Pēdējo 12 mēnešu dinamika</h3>
+              <p className="pipboy-subtle mt-2 text-base leading-8">
                 Grafiks vienmēr beidzas ar atlasīto mēnesi, tāpēc vari ērti paskatīties atpakaļ līdz
                 12 mēnešiem.
               </p>
@@ -326,7 +326,7 @@ export function DashboardPage() {
         </div>
 
         <div className="pipboy-panel rounded-[28px] p-6">
-          <h3 className="text-2xl font-semibold text-[#39ff14]">Ātrais skats par periodu</h3>
+          <h3 className="pipboy-accent-strong text-2xl font-semibold">Ātrais skats par periodu</h3>
           <div className="mt-5 space-y-4">
             <DashboardQuickList
               title="Jaunākie rēķini periodā"
@@ -383,16 +383,13 @@ function DashboardQuickList(props: {
 }) {
   return (
     <div className="rounded-3xl border border-[rgba(0,255,70,0.12)] bg-[rgba(6,16,8,0.66)] p-4">
-      <h4 className="text-lg font-medium text-[#39ff14]">{props.title}</h4>
+      <h4 className="pipboy-accent-strong text-lg font-medium">{props.title}</h4>
       {props.items.length === 0 ? (
-        <p className="mt-3 text-sm text-[rgba(184,255,184,0.62)]">{props.emptyText}</p>
+        <p className="pipboy-subtle mt-3 text-sm">{props.emptyText}</p>
       ) : (
         <div className="mt-4 space-y-3">
           {props.items.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-2xl border border-[rgba(0,255,70,0.12)] bg-[rgba(4,10,4,0.72)] px-4 py-3"
-            >
+            <div key={item.id} className="pipboy-metric-box px-4 py-3">
               <p className="font-medium text-[#efffeb]">{item.primary}</p>
               <p
                 className={`mt-1 text-sm ${

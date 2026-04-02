@@ -9,6 +9,9 @@
   --color-pip-green-strong: #39ff14;
   --color-pip-green-soft: #98ff98;
   --color-pip-text: #b8ffb8;
+  --color-pip-warning: #ffcc33;
+  --color-pip-danger: #ff6b6b;
+  --color-pip-muted: rgba(184, 255, 184, 0.72);
 }
 
 :root {
@@ -117,6 +120,15 @@ button {
   color: var(--color-pip-green);
 }
 
+.pipboy-accent-strong {
+  color: var(--color-pip-green-strong);
+  text-shadow: 0 0 12px rgba(57, 255, 20, 0.18);
+}
+
+.pipboy-subtle {
+  color: var(--color-pip-muted);
+}
+
 .pipboy-grid {
   background-image:
     linear-gradient(rgba(0, 255, 65, 0.04) 1px, transparent 1px),
@@ -175,4 +187,92 @@ button {
 .pipboy-button-danger:hover {
   border-color: rgba(255, 120, 120, 0.3);
   background: rgba(98, 30, 30, 0.55);
+}
+
+.pipboy-input {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 255, 70, 0.14);
+  background: rgba(7, 17, 7, 0.84);
+  color: #efffeb;
+  outline: none;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.pipboy-input:focus {
+  border-color: rgba(57, 255, 20, 0.42);
+  background: rgba(9, 22, 9, 0.94);
+  box-shadow: 0 0 0 1px rgba(57, 255, 20, 0.08);
+}
+
+.pipboy-input::placeholder {
+  color: rgba(184, 255, 184, 0.4);
+}
+
+.pipboy-stat {
+  border-radius: 1.75rem;
+  border: 1px solid rgba(0, 255, 70, 0.12);
+  background:
+    linear-gradient(180deg, rgba(10, 20, 10, 0.86), rgba(4, 10, 4, 0.92));
+  box-shadow:
+    inset 0 0 0 1px rgba(57, 255, 20, 0.03),
+    0 0 18px rgba(0, 255, 65, 0.05);
+}
+
+.pipboy-stat-label {
+  color: rgba(184, 255, 184, 0.62);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+.pipboy-stat-value {
+  color: var(--color-pip-green-strong);
+  text-shadow: 0 0 12px rgba(57, 255, 20, 0.18);
+}
+
+.pipboy-metric-box {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(0, 255, 70, 0.12);
+  background: rgba(4, 10, 4, 0.72);
+}
+
+.pipboy-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border-width: 1px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.pipboy-status-issued {
+  border-color: rgba(255, 204, 51, 0.28);
+  background: rgba(255, 204, 51, 0.12);
+  color: #ffe58a;
+}
+
+.pipboy-status-paid {
+  border-color: rgba(57, 255, 20, 0.3);
+  background: rgba(0, 255, 65, 0.14);
+  color: #b9ff9d;
+  box-shadow: 0 0 14px rgba(57, 255, 20, 0.08);
+}
+
+.pipboy-status-late {
+  border-color: rgba(255, 107, 107, 0.3);
+  background: rgba(255, 80, 80, 0.14);
+  color: #ffb0b0;
+}
+
+.pipboy-status-cancelled {
+  border-color: rgba(184, 255, 184, 0.16);
+  background: rgba(184, 255, 184, 0.06);
+  color: rgba(214, 255, 220, 0.82);
 }

@@ -20,10 +20,10 @@ type InvoiceItemRow = { description: string; quantity: number; unit: string; uni
 const emptyItem = (): Item => ({ description: '', quantity: '1', unit: 'gab.', unit_price: '0' })
 const labels: Record<Status, string> = { izrakstits: 'Izrakstīts', apmaksats: 'Apmaksāts', kavejas: 'Kavējas', atcelts: 'Atcelts' }
 const pill: Record<Status, string> = {
-  izrakstits: 'border-amber-300/20 bg-amber-300/10 text-amber-100',
-  apmaksats: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100',
-  kavejas: 'border-rose-300/20 bg-rose-300/10 text-rose-100',
-  atcelts: 'border-slate-300/20 bg-slate-300/10 text-slate-200',
+  izrakstits: 'pipboy-status pipboy-status-issued',
+  apmaksats: 'pipboy-status pipboy-status-paid',
+  kavejas: 'pipboy-status pipboy-status-late',
+  atcelts: 'pipboy-status pipboy-status-cancelled',
 }
 
 function toEditableItems(rows: InvoiceItemRow[]): Item[] {
@@ -377,7 +377,7 @@ export function InvoicesPage() {
                   <div className="text-base font-medium text-white">{formatDate(invoice.issue_date)}</div>
                   <div className="min-w-0"><p className="truncate text-lg font-semibold text-white">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-1 truncate text-sm text-slate-400">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
                   <div><p className="text-base font-semibold text-white">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-1 text-sm text-slate-400">Termiņš: {formatDate(invoice.due_date)}</p></div>
-                  <div className="space-y-2"><span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em]', pill[invoice.status])}>{labels[invoice.status]}</span><div className="relative"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-emerald-400/50 disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></div>
+                  <div className="space-y-2"><span className={pill[invoice.status]}>{labels[invoice.status]}</span><div className="relative"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-emerald-400/50 disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></div>
                   <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold text-white">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
                 </article>
               ))}
