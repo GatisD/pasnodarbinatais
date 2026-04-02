@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogIn, UserPlus } from 'lucide-react'
+import { LogIn, Shield, UserPlus } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
 import { supabase } from '@/lib/supabase'
@@ -40,50 +40,38 @@ export function AuthPage() {
 
     setFeedback(
       mode === 'login'
-        ? 'Ielogošanās veiksmīga.'
+        ? 'Piekļuve atvērta. Ielādējam tavu darba vidi.'
         : 'Konts izveidots. Ja vajag, apstiprini e-pastu un turpini ar profila aizpildi.',
     )
     setIsSubmitting(false)
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100 md:px-6">
+    <div className="pipboy-grid min-h-screen bg-[#061008] px-4 py-10 text-[#d6ffdc] md:px-6">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(45,212,191,0.16),_transparent_38%),linear-gradient(135deg,_rgba(15,23,42,0.95),_rgba(2,6,23,0.98))] p-8 lg:p-10">
-          <div className="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1 text-sm font-medium text-emerald-200">
-            Privāta grāmatvedības lietotne
+        <section className="pipboy-shell pipboy-panel rounded-[32px] p-8 lg:p-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(132,255,157,0.22)] bg-[rgba(132,255,157,0.08)] px-4 py-1 text-sm font-medium text-[#8cff9d]">
+            <Shield className="h-4 w-4" />
+            Pip-Boy piekļuves režīms
           </div>
-          <h1 className="mt-6 max-w-2xl text-4xl font-semibold tracking-tight text-white md:text-5xl">
-            Ienāc savā darba telpā un turi rēķinus, izdevumus un atskaites kārtībā.
+          <h1 className="pipboy-title mt-6 max-w-2xl text-4xl font-semibold tracking-[0.02em] md:text-5xl">
+            Ieeja privātajā uzskaites terminālī.
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-            Šī sistēma ir veidota privātai lietošanai: dati glabājas Supabase,
-            piekļuve ir tikai ar autentifikāciju, un lapa nav paredzēta publiskai
-            indeksēšanai.
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-[rgba(214,255,220,0.76)]">
+            Šī sistēma ir paredzēta tikai privātai lietošanai. Ieņēmumi, izdevumi,
+            rēķini un nodokļu aprēķini glabājas aiz piekļuves kontroles un Supabase autentifikācijas.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <FeatureCard
-              title="Moderni rēķini"
-              description="PDF ģenerēšana, statusi, termiņi un manuāla izsūtīšanas plūsma."
-            />
-            <FeatureCard
-              title="Izdevumu uzskaite"
-              description="Čeku glabāšana Supabase Storage un skaidras kategorijas."
-            />
-            <FeatureCard
-              title="Latvijas loģika"
-              description="Ceturkšņa un gada atskaites, pielāgotas pašnodarbinātajam."
-            />
-            <FeatureCard
-              title="Privāts hostings"
-              description="Vercel un Supabase ar noindex un pieslēgšanos tikai caur login."
-            />
+            <FeatureCard title="Darba terminālis" description="Viens ekrāns klientiem, rēķiniem, izdevumiem un ikdienas naudai." />
+            <FeatureCard title="Rēķinu PDF" description="Melnraksts, preview un lejupielāde tieši no sistēmas." />
+            <FeatureCard title="Privāta piekļuve" description="Cloudflare Access priekšā un Supabase Auth iekšpusē." />
+            <FeatureCard title="Latvijas loģika" description="Pielāgots pašnodarbinātā darba plūsmai un vietējam formātam." />
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur lg:p-8">
-          <div className="flex rounded-2xl border border-white/10 bg-slate-900/80 p-1">
+        <section className="pipboy-shell pipboy-panel rounded-[32px] p-6 lg:p-8">
+          <div className="flex rounded-2xl border border-[rgba(132,255,157,0.14)] bg-[rgba(6,16,8,0.68)] p-1">
             <ModeButton active={mode === 'login'} onClick={() => setMode('login')} icon={LogIn}>
               Ielogoties
             </ModeButton>
@@ -94,26 +82,26 @@ export function AuthPage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="mb-2 block text-sm text-slate-300">E-pasts</span>
+              <span className="mb-2 block text-sm text-[rgba(214,255,220,0.78)]">E-pasts</span>
               <input
                 required
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400/50"
+                className="w-full rounded-2xl border border-[rgba(132,255,157,0.14)] bg-[rgba(6,16,8,0.74)] px-4 py-3 text-[#f3fff5] outline-none transition placeholder:text-[rgba(214,255,220,0.3)] focus:border-[rgba(132,255,157,0.44)]"
                 placeholder="tu@epasts.lv"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm text-slate-300">Parole</span>
+              <span className="mb-2 block text-sm text-[rgba(214,255,220,0.78)]">Parole</span>
               <input
                 required
                 minLength={6}
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400/50"
+                className="w-full rounded-2xl border border-[rgba(132,255,157,0.14)] bg-[rgba(6,16,8,0.74)] px-4 py-3 text-[#f3fff5] outline-none transition placeholder:text-[rgba(214,255,220,0.3)] focus:border-[rgba(132,255,157,0.44)]"
                 placeholder="Vismaz 6 simboli"
               />
             </label>
@@ -121,20 +109,20 @@ export function AuthPage() {
             <button
               type="submit"
               disabled={isSubmitting || !isSupabaseConfigured}
-              className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-[rgba(132,255,157,0.22)] bg-[rgba(102,255,122,0.18)] px-4 py-3 font-medium text-[#f3fff5] transition hover:bg-[rgba(102,255,122,0.24)] disabled:cursor-not-allowed disabled:border-[rgba(132,255,157,0.08)] disabled:bg-[rgba(255,255,255,0.04)] disabled:text-[rgba(214,255,220,0.4)]"
             >
-              {isSubmitting ? 'Lūdzu uzgaidi...' : mode === 'login' ? 'Ielogoties' : 'Izveidot kontu'}
+              {isSubmitting ? 'Lūdzu uzgaidi...' : mode === 'login' ? 'Atvērt termināli' : 'Izveidot kontu'}
             </button>
           </form>
 
           {feedback ? (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">
+            <div className="mt-4 rounded-2xl border border-[rgba(132,255,157,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-3 text-sm leading-6 text-[#d6ffdc]">
               {feedback}
             </div>
           ) : null}
 
           {!isSupabaseConfigured ? (
-            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-100">
+            <div className="mt-4 rounded-2xl border border-[rgba(255,189,89,0.18)] bg-[rgba(255,189,89,0.08)] px-4 py-3 text-sm leading-6 text-[#ffe3a6]">
               Lai autentifikācija darbotos, projektam jābūt `.env` failam ar
               `VITE_SUPABASE_URL` un `VITE_SUPABASE_PUBLISHABLE_KEY`.
             </div>
@@ -147,9 +135,9 @@ export function AuthPage() {
 
 function FeatureCard(props: { title: string; description: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-      <h2 className="text-lg font-semibold text-white">{props.title}</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-300">{props.description}</p>
+    <div className="rounded-3xl border border-[rgba(132,255,157,0.12)] bg-[rgba(6,16,8,0.5)] p-5">
+      <h2 className="text-lg font-semibold text-[#f3fff5]">{props.title}</h2>
+      <p className="mt-2 text-sm leading-6 text-[rgba(214,255,220,0.72)]">{props.description}</p>
     </div>
   )
 }
@@ -167,7 +155,9 @@ function ModeButton(props: {
       type="button"
       onClick={props.onClick}
       className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
-        props.active ? 'bg-emerald-400 text-slate-950' : 'text-slate-300 hover:text-white'
+        props.active
+          ? 'border border-[rgba(132,255,157,0.14)] bg-[rgba(102,255,122,0.16)] text-[#f3fff5]'
+          : 'text-[rgba(214,255,220,0.68)] hover:text-[#f3fff5]'
       }`}
     >
       <span className="inline-flex items-center gap-2">

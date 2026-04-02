@@ -3,20 +3,20 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider'
 import { AppShell } from '@/features/layout/app-shell'
 import { AuthPage } from '@/pages/auth-page'
+import { ClientsPage } from '@/pages/clients-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { ExpensesPage } from '@/pages/expenses-page'
 import { InvoicesPage } from '@/pages/invoices-page'
-import { ClientsPage } from '@/pages/clients-page'
-import { ReportsPage } from '@/pages/reports-page'
 import { ProfilePage } from '@/pages/profile-page'
+import { ReportsPage } from '@/pages/reports-page'
 
 function ProtectedRoutes() {
   const { isLoading, user } = useAuth()
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-5 text-sm">
+      <div className="pipboy-grid flex min-h-screen items-center justify-center bg-[#061008] px-4 text-[#d6ffdc]">
+        <div className="pipboy-panel rounded-3xl px-6 py-5 text-sm uppercase tracking-[0.18em]">
           Ielādējam tavu darba vidi...
         </div>
       </div>
