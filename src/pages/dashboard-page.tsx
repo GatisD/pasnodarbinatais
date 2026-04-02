@@ -44,7 +44,9 @@ function formatMonthLabel(monthKey: string) {
 
 function formatMonthLong(monthKey: string) {
   const [year, month] = monthKey.split('-').map(Number)
-  return new Intl.DateTimeFormat('lv-LV', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+  return new Intl.DateTimeFormat('lv-LV', { month: 'long', year: 'numeric' }).format(
+    new Date(year, month - 1, 1),
+  )
 }
 
 function getPreviousMonthKey(monthKey: string, offset: number) {
@@ -68,7 +70,9 @@ export function DashboardPage() {
   const monthLabel = useMemo(() => formatMonthLong(selectedMonth), [selectedMonth])
 
   const chartData = useMemo<ChartRow[]>(() => {
-    const monthKeys = Array.from({ length: 12 }, (_, index) => getPreviousMonthKey(selectedMonth, 11 - index))
+    const monthKeys = Array.from({ length: 12 }, (_, index) =>
+      getPreviousMonthKey(selectedMonth, 11 - index),
+    )
 
     return monthKeys.map((monthKey) => {
       const income = roundMoney(
@@ -213,13 +217,16 @@ export function DashboardPage() {
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+      <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.28em] text-slate-400">Pārskata periods</p>
-            <h2 className="mt-2 text-3xl font-semibold text-white">{monthLabel}</h2>
-            <p className="mt-2 max-w-3xl text-base leading-8 text-slate-300">
-              Šeit redzi atlasītā mēneša ieņēmumus, izdevumus un provizorisko nodokļu ainu. Zemāk vari salīdzināt pēdējo 12 mēnešu dinamiku.
+            <p className="pipboy-accent text-sm uppercase tracking-[0.34em]">Pārskata periods</p>
+            <h2 className="mt-2 text-3xl font-semibold text-[#39ff14] drop-shadow-[0_0_10px_rgba(57,255,20,0.18)]">
+              {monthLabel}
+            </h2>
+            <p className="mt-3 max-w-3xl text-base leading-8 text-[rgba(184,255,184,0.78)]">
+              Šeit redzi atlasītā mēneša ieņēmumus, izdevumus un provizorisko nodokļu ainu.
+              Zemāk vari salīdzināt pēdējo 12 mēnešu dinamiku.
             </p>
           </div>
 
@@ -228,12 +235,12 @@ export function DashboardPage() {
               type="month"
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none transition focus:border-emerald-400/50"
+              className="rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.84)] px-4 py-3 text-[#efffeb] outline-none transition focus:border-[rgba(57,255,20,0.42)]"
             />
             <button
               type="button"
               onClick={() => setSelectedMonth(startMonthKey())}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+              className="pipboy-button px-4 py-3 text-sm font-medium"
             >
               Šis mēnesis
             </button>
@@ -241,7 +248,7 @@ export function DashboardPage() {
         </div>
 
         {feedback ? (
-          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">
+          <div className="mt-5 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">
             {feedback}
           </div>
         ) : null}
@@ -252,61 +259,74 @@ export function DashboardPage() {
           const Icon = card.icon
 
           return (
-            <article key={card.label} className="rounded-[28px] border border-white/10 bg-white/5 p-5">
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-lg font-medium text-slate-200">{card.label}</p>
-                <div className="rounded-full bg-emerald-400/15 p-3 text-emerald-200">
+            <article key={card.label} className="pipboy-panel rounded-[28px] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-lg font-medium text-[rgba(214,255,220,0.92)]">{card.label}</p>
+                <div className="rounded-full border border-[rgba(0,255,70,0.18)] bg-[rgba(0,255,65,0.08)] p-3 text-[#7cff7c]">
                   <Icon className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-8 text-4xl font-semibold tracking-tight text-white">{isLoading ? '...' : card.value}</p>
-              <p className="mt-3 text-sm uppercase tracking-[0.18em] text-slate-500">{card.hint}</p>
+              <p className="mt-8 text-5xl font-semibold tracking-tight text-[#39ff14] drop-shadow-[0_0_12px_rgba(57,255,20,0.18)]">
+                {isLoading ? '...' : card.value}
+              </p>
+              <p className="mt-3 text-sm uppercase tracking-[0.22em] text-[rgba(184,255,184,0.52)]">
+                {card.hint}
+              </p>
             </article>
           )
         })}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+        <div className="pipboy-panel rounded-[28px] p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-2xl font-semibold text-white">Pēdējo 12 mēnešu dinamika</h3>
-              <p className="mt-2 text-base leading-8 text-slate-300">
-                Grafiks vienmēr beidzas ar atlasīto mēnesi, tāpēc vari ērti paskatīties atpakaļ līdz 12 mēnešiem.
+              <h3 className="text-2xl font-semibold text-[#39ff14]">Pēdējo 12 mēnešu dinamika</h3>
+              <p className="mt-2 text-base leading-8 text-[rgba(184,255,184,0.78)]">
+                Grafiks vienmēr beidzas ar atlasīto mēnesi, tāpēc vari ērti paskatīties atpakaļ līdz
+                12 mēnešiem.
               </p>
             </div>
           </div>
 
-          <div className="mt-6 h-[320px] rounded-3xl border border-white/10 bg-slate-950/40 p-4">
+          <div className="mt-6 h-[320px] rounded-3xl border border-[rgba(0,255,70,0.12)] bg-[rgba(4,10,4,0.72)] p-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <CartesianGrid stroke="rgba(0,255,70,0.08)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: '#9cff9c', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis
-                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                  tick={{ fill: '#9cff9c', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(value) => `${Math.round(Number(value ?? 0))}€`}
                 />
                 <Tooltip
-                  cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                  cursor={{ fill: 'rgba(0,255,65,0.05)' }}
                   contentStyle={{
-                    background: '#0f172a',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: '#081108',
+                    border: '1px solid rgba(0,255,70,0.16)',
                     borderRadius: '16px',
-                    color: '#fff',
+                    color: '#efffeb',
                   }}
-                  formatter={(value, name) => [formatCurrency(Number(value ?? 0)), name === 'income' ? 'Ieņēmumi' : 'Izdevumi']}
+                  formatter={(value, name) => [
+                    formatCurrency(Number(value ?? 0)),
+                    name === 'income' ? 'Ieņēmumi' : 'Izdevumi',
+                  ]}
                 />
-                <Bar dataKey="income" name="Ieņēmumi" radius={[8, 8, 0, 0]} fill="#34d399" />
-                <Bar dataKey="expenses" name="Izdevumi" radius={[8, 8, 0, 0]} fill="#60a5fa" />
+                <Bar dataKey="income" name="Ieņēmumi" radius={[8, 8, 0, 0]} fill="#39ff14" />
+                <Bar dataKey="expenses" name="Izdevumi" radius={[8, 8, 0, 0]} fill="#00b33c" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-slate-900/80 p-6">
-          <h3 className="text-2xl font-semibold text-white">Ātrais skats par periodu</h3>
+        <div className="pipboy-panel rounded-[28px] p-6">
+          <h3 className="text-2xl font-semibold text-[#39ff14]">Ātrais skats par periodu</h3>
           <div className="mt-5 space-y-4">
             <DashboardQuickList
               title="Jaunākie rēķini periodā"
@@ -329,6 +349,7 @@ export function DashboardPage() {
             <DashboardQuickList
               title="Nodokļu kopsavilkums"
               emptyText="Nav datu nodokļu aprēķinam."
+              highlightValues
               items={[
                 {
                   id: 'vsaoi',
@@ -357,19 +378,29 @@ export function DashboardPage() {
 function DashboardQuickList(props: {
   title: string
   emptyText: string
+  highlightValues?: boolean
   items: { id: string; primary: string; secondary: string }[]
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-      <h4 className="text-lg font-medium text-white">{props.title}</h4>
+    <div className="rounded-3xl border border-[rgba(0,255,70,0.12)] bg-[rgba(6,16,8,0.66)] p-4">
+      <h4 className="text-lg font-medium text-[#39ff14]">{props.title}</h4>
       {props.items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-400">{props.emptyText}</p>
+        <p className="mt-3 text-sm text-[rgba(184,255,184,0.62)]">{props.emptyText}</p>
       ) : (
         <div className="mt-4 space-y-3">
           {props.items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3">
-              <p className="font-medium text-slate-100">{item.primary}</p>
-              <p className="mt-1 text-sm text-slate-400">{item.secondary}</p>
+            <div
+              key={item.id}
+              className="rounded-2xl border border-[rgba(0,255,70,0.12)] bg-[rgba(4,10,4,0.72)] px-4 py-3"
+            >
+              <p className="font-medium text-[#efffeb]">{item.primary}</p>
+              <p
+                className={`mt-1 text-sm ${
+                  props.highlightValues ? 'text-[#39ff14]' : 'text-[rgba(184,255,184,0.7)]'
+                }`}
+              >
+                {item.secondary}
+              </p>
             </div>
           ))}
         </div>
