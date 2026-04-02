@@ -265,7 +265,7 @@ export function ExpensesPage() {
   return (
     <div className="grid gap-6">
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-4">
               <h3 className="text-3xl font-semibold text-white">Izdevumi</h3>
@@ -273,9 +273,9 @@ export function ExpensesPage() {
             </div>
             <p className="mt-3 max-w-3xl text-base leading-8 text-slate-300">Filtrē izdevumus pēc mēneša, kategorijas vai piegādātāja un pārvaldi failus no viena skata.</p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-100 transition hover:bg-white/10">Notīrīt filtrus</button>
-            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 font-medium text-white transition hover:bg-sky-500">{showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Pievienot izdevumu'}</button>
+          <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+            <button type="button" onClick={clearFilters} className="pipboy-button px-5 py-3 font-medium">Notīrīt filtrus</button>
+            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">{showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Pievienot izdevumu'}</button>
           </div>
         </div>
 
@@ -301,7 +301,7 @@ export function ExpensesPage() {
               <h4 className="text-2xl font-semibold text-white">{editingExpenseId ? 'Rediģēt izdevumu' : 'Jauns izdevums'}</h4>
               <p className="mt-2 text-sm leading-7 text-slate-400">Saglabā summu, kategoriju, piegādātāju un, ja vajag, pievieno čeka vai rēķina failu.</p>
             </div>
-            <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
+            <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="pipboy-button h-11 w-11 rounded-full text-slate-200" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
           </div>
 
           <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
@@ -314,7 +314,7 @@ export function ExpensesPage() {
               <Field title="Čeks vai rēķina fails"><label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-white/15 bg-slate-900/50 px-4 py-4 text-slate-300 transition hover:border-emerald-400/40 hover:bg-slate-900/70"><FileUp className="h-5 w-5 text-emerald-300" /><span className="text-sm">{receiptFile ? receiptFile.name : existingReceiptPath ? 'Esošais fails saglabāts' : 'Izvēlies attēlu vai PDF failu'}</span><input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" className="hidden" onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)} /></label></Field>
               <div className="md:col-span-2"><Field title="Apraksts"><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Par ko bija šis izdevums" /></Field></div>
             </div>
-            <div className="flex gap-3"><button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300">{isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}{isSaving ? 'Saglabājam...' : editingExpenseId ? 'Saglabāt izmaiņas' : 'Pievienot izdevumu'}</button></div>
+            <div className="flex gap-3"><button type="submit" disabled={isSaving} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">{isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}{isSaving ? 'Saglabājam...' : editingExpenseId ? 'Saglabāt izmaiņas' : 'Pievienot izdevumu'}</button></div>
           </form>
         </section>
       ) : null}
@@ -322,15 +322,15 @@ export function ExpensesPage() {
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-4 md:p-6">
         {isLoading ? <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">Ielādējam izdevumus...</div> : filtered.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">Nekas neatbilst atlasītajiem filtriem.</div> : (
           <div className="overflow-hidden rounded-[24px] border border-white/10">
-            <div className="hidden grid-cols-[140px_minmax(0,1.4fr)_180px_180px_290px] gap-4 bg-slate-100/5 px-5 py-4 text-sm font-medium text-slate-300 lg:grid"><span>Datums</span><span>Piegādātājs / apraksts</span><span>Kategorija</span><span>Fails</span><span>Summa / darbības</span></div>
+            <div className="hidden grid-cols-[140px_minmax(220px,1.4fr)_180px_180px_290px] gap-4 bg-slate-100/5 px-5 py-4 text-sm font-medium text-slate-300 lg:grid"><span>Datums</span><span>Piegādātājs / apraksts</span><span>Kategorija</span><span>Fails</span><span>Summa / darbības</span></div>
             <div className="divide-y divide-white/10">
               {filtered.map((expense) => (
-                <article key={expense.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[140px_minmax(0,1.4fr)_180px_180px_290px] lg:items-center">
+                <article key={expense.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[140px_minmax(220px,1.4fr)_180px_180px_290px] lg:items-center">
                   <div className="text-base font-medium text-white">{formatDate(expense.date)}</div>
                   <div className="min-w-0"><p className="truncate text-lg font-semibold text-white">{expense.vendor || 'Bez piegādātāja nosaukuma'}</p><p className="mt-1 truncate text-sm text-slate-400">{expense.description || 'Izdevumu ieraksts'}</p></div>
-                  <div><span className="inline-flex rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-100">{getCategoryLabel(expense.category)}</span></div>
-                  <div>{expense.receipt_url ? <a className="inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10" href={expense.receipt_url} target="_blank" rel="noreferrer">Atvērt failu</a> : <span className="text-sm text-slate-500">Nav faila</span>}</div>
-                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><div><p className="text-2xl font-semibold text-white">{formatCurrency(expense.amount)}</p><p className="mt-1 text-sm text-slate-400">PVN: {formatCurrency(expense.vat_amount)}</p></div><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => openEditor(expense, false)} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => openEditor(expense, true)} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
+                  <div><span className="inline-flex rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-emerald-100">{getCategoryLabel(expense.category)}</span></div>
+                  <div>{expense.receipt_url ? <a className="pipboy-button px-4 py-2 text-sm" href={expense.receipt_url} target="_blank" rel="noreferrer">Atvērt failu</a> : <span className="text-sm text-slate-500">Nav faila</span>}</div>
+                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><div><p className="text-2xl font-semibold text-white">{formatCurrency(expense.amount)}</p><p className="mt-1 text-sm text-slate-400">PVN: {formatCurrency(expense.vat_amount)}</p></div><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => openEditor(expense, false)} className="pipboy-button px-3 py-2 text-sm font-medium"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => openEditor(expense, true)} className="pipboy-button px-3 py-2 text-sm font-medium"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
                 </article>
               ))}
             </div>
