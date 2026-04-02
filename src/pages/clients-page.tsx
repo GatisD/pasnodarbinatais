@@ -148,18 +148,18 @@ export function ClientsPage() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[460px_1fr]">
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+      <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-semibold text-white">
+            <h3 className="text-2xl font-semibold text-[#efffeb]">
               {editingId ? 'Rediģēt klientu' : 'Pievienot klientu'}
             </h3>
-            <p className="mt-2 text-base leading-8 text-slate-300">
-              Saglabā klientu rekvizītus, lai rēķina izveide vēlāk būtu ātra un
-              bez atkārtotas manuālas rakstīšanas.
+            <p className="mt-2 text-base leading-8 text-[rgba(184,255,184,0.8)]">
+              Saglabā klientu rekvizītus, lai rēķina izveide vēlāk būtu ātra un bez
+              atkārtotas manuālas rakstīšanas.
             </p>
           </div>
-          <div className="rounded-full bg-emerald-400/15 p-3 text-emerald-200">
+          <div className="rounded-full border border-[rgba(0,255,70,0.18)] bg-[rgba(0,255,65,0.08)] p-3 text-[#7cff7c]">
             <Plus className="h-5 w-5" />
           </div>
         </div>
@@ -197,7 +197,7 @@ export function ClientsPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex rounded-2xl bg-emerald-400 px-5 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+              className="pipboy-button pipboy-button-primary px-5 py-3 font-medium disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? 'Saglabājam...' : editingId ? 'Saglabāt izmaiņas' : 'Pievienot klientu'}
             </button>
@@ -205,7 +205,7 @@ export function ClientsPage() {
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="inline-flex rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-slate-200 transition hover:bg-white/10"
+                className="pipboy-button px-5 py-3 font-medium"
               >
                 Atcelt
               </button>
@@ -214,47 +214,48 @@ export function ClientsPage() {
         </form>
 
         {feedback ? (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">
+          <div className="mt-4 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">
             {feedback}
           </div>
         ) : null}
       </section>
 
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+      <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-semibold text-white">Klientu saraksts</h3>
-            <p className="mt-2 text-base leading-8 text-slate-300">
+            <h3 className="text-2xl font-semibold text-[#efffeb]">Klientu saraksts</h3>
+            <p className="mt-2 text-base leading-8 text-[rgba(184,255,184,0.8)]">
               Šis saraksts vēlāk kalpos kā pamats rēķinu formai un ātrai klientu atlasei.
             </p>
           </div>
-          <div className="rounded-full bg-sky-400/15 p-3 text-sky-200">
+          <div className="rounded-full border border-[rgba(0,255,70,0.18)] bg-[rgba(0,255,65,0.08)] p-3 text-[#7cff7c]">
             <Users className="h-5 w-5" />
           </div>
         </div>
 
         {isLoading ? (
-          <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">
+          <div className="mt-6 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.7)] px-4 py-6 text-sm text-[rgba(184,255,184,0.72)]">
             Ielādējam klientus...
           </div>
         ) : clients.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">
-            Klientu vēl nav. Pievieno pirmo klientu, lai varam nākamajā solī ķerties klāt rēķiniem.
+          <div className="mt-6 rounded-2xl border border-dashed border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.7)] px-5 py-8 text-base leading-8 text-[rgba(184,255,184,0.62)]">
+            Klientu vēl nav. Pievieno pirmo klientu, lai varam nākamajā solī ķerties klāt
+            rēķiniem.
           </div>
         ) : (
           <div className="mt-6 space-y-4">
             {clients.map((client) => (
               <article
                 key={client.id}
-                className="rounded-3xl border border-white/10 bg-slate-900/70 p-5"
+                className="rounded-3xl border border-[rgba(0,255,70,0.12)] bg-[rgba(5,16,10,0.78)] p-5"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-2">
-                    <h4 className="text-lg font-semibold text-white">{client.name}</h4>
-                    <p className="text-sm text-slate-300">
+                    <h4 className="text-lg font-semibold text-[#efffeb]">{client.name}</h4>
+                    <p className="text-sm text-[rgba(184,255,184,0.82)]">
                       {client.reg_number || 'Nav norādīts reģistrācijas numurs'}
                     </p>
-                    <div className="grid gap-1 text-sm text-slate-400">
+                    <div className="grid gap-1 text-sm text-[rgba(184,255,184,0.66)]">
                       <span>{client.email || 'Nav e-pasta'}</span>
                       <span>{client.bank_iban || 'Nav IBAN'}</span>
                       <span>{client.address || 'Nav adreses'}</span>
@@ -265,7 +266,7 @@ export function ClientsPage() {
                     <button
                       type="button"
                       onClick={() => handleEdit(client)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+                      className="pipboy-button px-4 py-2 text-sm"
                     >
                       <Pencil className="h-4 w-4" />
                       Rediģēt
@@ -273,7 +274,7 @@ export function ClientsPage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(client.id)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-sm text-rose-100 transition hover:bg-rose-400/15"
+                      className="pipboy-button pipboy-button-danger px-4 py-2 text-sm"
                     >
                       <Trash2 className="h-4 w-4" />
                       Dzēst
@@ -298,13 +299,13 @@ function ClientField(props: {
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm text-slate-300">{props.label}</span>
+      <span className="mb-2 block text-sm text-[rgba(184,255,184,0.8)]">{props.label}</span>
       <input
         required={props.required}
         type={props.type ?? 'text'}
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
-        className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400/50"
+        className="w-full rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.84)] px-4 py-3 text-[#efffeb] outline-none transition placeholder:text-[rgba(184,255,184,0.4)] focus:border-[rgba(57,255,20,0.42)] focus:bg-[rgba(9,22,9,0.94)]"
       />
     </label>
   )

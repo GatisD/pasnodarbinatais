@@ -117,29 +117,29 @@ export function ProfilePage() {
 
   if (!isSupabaseConfigured) {
     return (
-      <section className="rounded-[28px] border border-amber-300/20 bg-amber-300/10 p-6 text-amber-100">
+      <section className="rounded-[28px] border border-[rgba(255,215,0,0.2)] bg-[rgba(120,96,0,0.16)] p-6 text-[#fff2a8]">
         Pievieno `.env` failu ar Supabase URL un publishable key, lai profila saglabāšana darbotos.
       </section>
     )
   }
 
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+    <section className="pipboy-panel rounded-[28px] p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h3 className="text-2xl font-semibold text-white">Profils</h3>
-          <p className="mt-2 max-w-2xl text-base leading-8 text-slate-300">
+          <h3 className="text-2xl font-semibold text-[#efffeb]">Profils</h3>
+          <p className="mt-2 max-w-2xl text-base leading-8 text-[rgba(184,255,184,0.8)]">
             Šie dati tiks izmantoti rēķinos, atskaitēs un vispārējā pašnodarbinātā
             uzskaites plūsmā.
           </p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
-          Konts: <span className="text-white">{user?.email ?? '-'}</span>
+        <div className="rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.72)] px-4 py-3 text-sm text-[rgba(184,255,184,0.8)]">
+          Konts: <span className="text-[#efffeb]">{user?.email ?? '-'}</span>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">
+        <div className="mt-6 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-6 text-sm text-[rgba(184,255,184,0.72)]">
           Ielādējam profila datus...
         </div>
       ) : (
@@ -190,7 +190,7 @@ export function ProfilePage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex rounded-2xl bg-emerald-400 px-5 py-3 font-medium text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+              className="pipboy-button pipboy-button-primary px-5 py-3 font-medium disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? 'Saglabājam...' : 'Saglabāt profilu'}
             </button>
@@ -199,7 +199,7 @@ export function ProfilePage() {
       )}
 
       {feedback ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">
+        <div className="mt-4 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">
           {feedback}
         </div>
       ) : null}
@@ -215,12 +215,12 @@ function ProfileField(props: {
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm text-slate-300">{props.label}</span>
+      <span className="mb-2 block text-sm text-[rgba(184,255,184,0.8)]">{props.label}</span>
       <input
         type={props.type ?? 'text'}
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
-        className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400/50"
+        className="w-full rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.84)] px-4 py-3 text-[#efffeb] outline-none transition placeholder:text-[rgba(184,255,184,0.4)] focus:border-[rgba(57,255,20,0.42)] focus:bg-[rgba(9,22,9,0.94)]"
       />
     </label>
   )
