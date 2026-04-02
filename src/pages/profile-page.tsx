@@ -127,14 +127,14 @@ export function ProfilePage() {
     <section className="pipboy-panel rounded-[28px] p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h3 className="text-2xl font-semibold text-[#efffeb]">Profils</h3>
-          <p className="mt-2 max-w-2xl text-base leading-8 text-[rgba(184,255,184,0.8)]">
+          <h3 className="pipboy-title text-2xl font-semibold">Profils</h3>
+          <p className="pipboy-subtle mt-2 max-w-2xl text-base leading-8">
             Šie dati tiks izmantoti rēķinos, atskaitēs un vispārējā pašnodarbinātā
             uzskaites plūsmā.
           </p>
         </div>
-        <div className="rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.72)] px-4 py-3 text-sm text-[rgba(184,255,184,0.8)]">
-          Konts: <span className="text-[#efffeb]">{user?.email ?? '-'}</span>
+          <div className="pipboy-surface px-4 py-3 text-sm pipboy-subtle">
+          Konts: <span className="pipboy-title">{user?.email ?? '-'}</span>
         </div>
       </div>
 
@@ -215,12 +215,12 @@ function ProfileField(props: {
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm text-[rgba(184,255,184,0.8)]">{props.label}</span>
+      <span className="pipboy-field-label">{props.label}</span>
       <input
         type={props.type ?? 'text'}
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
-        className="w-full rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.84)] px-4 py-3 text-[#efffeb] outline-none transition placeholder:text-[rgba(184,255,184,0.4)] focus:border-[rgba(57,255,20,0.42)] focus:bg-[rgba(9,22,9,0.94)]"
+        className="pipboy-input px-4 py-3"
       />
     </label>
   )

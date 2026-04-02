@@ -294,14 +294,14 @@ export function InvoicesPage() {
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+      <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-4">
-              <h3 className="text-3xl font-semibold text-white">Rēķini</h3>
-              <p className="text-base text-slate-300">Kalendārā gada ieņēmumi: <span className="font-semibold text-white">{formatCurrency(summary.yearIncome)}</span></p>
+              <h3 className="pipboy-title text-3xl font-semibold">Rēķini</h3>
+              <p className="pipboy-subtle text-base">Kalendārā gada ieņēmumi: <span className="pipboy-accent-strong font-semibold">{formatCurrency(summary.yearIncome)}</span></p>
             </div>
-            <p className="mt-3 max-w-3xl text-base leading-8 text-slate-300">Filtrē rēķinus pēc mēneša, statusa vai klienta un pārvaldi PDF, rediģēšanu un dublēšanu vienuviet.</p>
+            <p className="pipboy-subtle mt-3 max-w-3xl text-base leading-8">Filtrē rēķinus pēc mēneša, statusa vai klienta un pārvaldi PDF, rediģēšanu un dublēšanu vienuviet.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 xl:justify-end">
             <button type="button" onClick={clearFilters} className="pipboy-button px-5 py-3 font-medium">Notīrīt filtrus</button>
@@ -323,35 +323,35 @@ export function InvoicesPage() {
           <Field title="Statuss"><div className="relative"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | Status)} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 pr-10 text-white outline-none focus:border-emerald-400/50"><option value="all">Visi statusi</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></Field>
           <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 py-3 pl-11 pr-4 text-white outline-none focus:border-emerald-400/50" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field>
         </div>
-        {feedback ? <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">{feedback}</div> : null}
+        {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>
 
       {showComposer ? (
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="pipboy-panel rounded-[28px] p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h4 className="text-2xl font-semibold text-white">{editingInvoiceId ? 'Rediģēt rēķinu' : 'Jauns rēķins'}</h4>
-                <p className="mt-2 text-sm leading-7 text-slate-400">Aizpildi klientu, rindas un summas. Ja vajag, uzreiz apskati PDF melnrakstu.</p>
+                <h4 className="pipboy-title text-2xl font-semibold">{editingInvoiceId ? 'Rediģēt rēķinu' : 'Jauns rēķins'}</h4>
+                <p className="pipboy-subtle mt-2 text-sm leading-7">Aizpildi klientu, rindas un summas. Ja vajag, uzreiz apskati PDF melnrakstu.</p>
               </div>
-              <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="pipboy-button h-11 w-11 rounded-full text-slate-200" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="pipboy-button h-11 w-11 rounded-full" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
             </div>
 
             <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field title="Klients"><select value={clientId} onChange={(event) => setClientId(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50"><option value="">Izvēlies klientu</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
-                <Field title="PVN likme (%)"><input value={vatRate} onChange={(event) => setVatRate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="0" /></Field>
-                <Field title="Izrakstīšanas datums"><input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
-                <Field title="Apmaksas termiņš"><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
+                <Field title="Klients"><select value={clientId} onChange={(event) => setClientId(event.target.value)} className="pipboy-input px-4 py-3"><option value="">Izvēlies klientu</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
+                <Field title="PVN likme (%)"><input value={vatRate} onChange={(event) => setVatRate(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0" /></Field>
+                <Field title="Izrakstīšanas datums"><input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+                <Field title="Apmaksas termiņš"><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between"><h5 className="text-lg font-semibold text-white">Rēķina rindas</h5><button type="button" onClick={() => setItems((current) => [...current, emptyItem()])} className="pipboy-button px-4 py-2 text-sm"><Plus className="h-4 w-4" />Pievienot rindu</button></div>
-                {items.map((item, index) => <div key={index} className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/60 p-4 md:grid-cols-[1.45fr_0.5fr_0.45fr_0.65fr_auto]"><input value={item.description} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Pakalpojuma apraksts" /><input value={item.quantity} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, quantity: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="1" /><input value={item.unit} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="gab." /><input value={item.unit_price} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit_price: event.target.value } : row))} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="0,00" /><button type="button" onClick={() => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index))} className="pipboy-button pipboy-button-danger px-4 py-3"><Trash2 className="h-4 w-4" /></button></div>)}
+                <div className="flex items-center justify-between"><h5 className="pipboy-title text-lg font-semibold">Rēķina rindas</h5><button type="button" onClick={() => setItems((current) => [...current, emptyItem()])} className="pipboy-button px-4 py-2 text-sm"><Plus className="h-4 w-4" />Pievienot rindu</button></div>
+                {items.map((item, index) => <div key={index} className="pipboy-surface grid gap-3 p-4 md:grid-cols-[1.45fr_0.5fr_0.45fr_0.65fr_auto]"><input value={item.description} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="Pakalpojuma apraksts" /><input value={item.quantity} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, quantity: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="1" /><input value={item.unit} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="gab." /><input value={item.unit_price} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit_price: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="0,00" /><button type="button" onClick={() => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index))} className="pipboy-button pipboy-button-danger px-4 py-3"><Trash2 className="h-4 w-4" /></button></div>)}
               </div>
 
-              <Field title="Piezīmes"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Papildu piezīmes rēķinam" /></Field>
-              <div className="grid gap-3 rounded-3xl border border-white/10 bg-slate-900/70 p-5 text-base md:grid-cols-3"><Stat title="Starpsumma" value={formatCurrency(subtotal)} compact /><Stat title="PVN" value={formatCurrency(vatAmount)} compact /><Stat title="Kopā" value={formatCurrency(total)} compact accent /></div>
+              <Field title="Piezīmes"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="pipboy-input px-4 py-3" placeholder="Papildu piezīmes rēķinam" /></Field>
+              <div className="pipboy-surface grid gap-3 rounded-3xl p-5 text-base md:grid-cols-3"><Stat title="Starpsumma" value={formatCurrency(subtotal)} compact /><Stat title="PVN" value={formatCurrency(vatAmount)} compact /><Stat title="Kopā" value={formatCurrency(total)} compact accent /></div>
               <div className="flex flex-wrap items-center gap-3 xl:justify-end">
                 <button type="submit" disabled={isSaving} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">{isSaving ? 'Saglabājam...' : editingInvoiceId ? 'Saglabāt izmaiņas' : 'Saglabāt rēķinu'}</button>
                 <PDFDownloadLink document={<InvoicePdfDocument data={draftPdf} />} fileName={`${draftNumber}.pdf`} className="pipboy-button px-5 py-3 font-medium">{({ loading }) => <><Download className="h-4 w-4" />{loading ? 'Gatavojam PDF...' : 'Lejupielādēt melnrakstu'}</>}</PDFDownloadLink>
@@ -360,25 +360,25 @@ export function InvoicesPage() {
             </form>
           </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-            <h4 className="text-2xl font-semibold text-white">Melnraksta preview</h4>
-            {showPreview ? <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60"><PDFViewer width="100%" height={760} showToolbar><InvoicePdfDocument data={draftPdf} /></PDFViewer></div> : <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">Preview ir paslēpts. Vari to ieslēgt ar pogu “Rādīt preview”.</div>}
+          <div className="pipboy-panel rounded-[28px] p-6">
+            <h4 className="pipboy-title text-2xl font-semibold">Melnraksta preview</h4>
+            {showPreview ? <div className="pipboy-surface mt-6 overflow-hidden"><PDFViewer width="100%" height={760} showToolbar><InvoicePdfDocument data={draftPdf} /></PDFViewer></div> : <div className="pipboy-empty mt-6 px-5 py-8 text-base leading-8">Preview ir paslēpts. Vari to ieslēgt ar pogu “Rādīt preview”.</div>}
           </div>
         </section>
       ) : null}
 
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-4 md:p-6">
-        {isLoading ? <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">Ielādējam rēķinus...</div> : filtered.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">Nekas neatbilst atlasītajiem filtriem.</div> : (
-          <div className="overflow-hidden rounded-[24px] border border-white/10">
-            <div className="hidden grid-cols-[140px_minmax(220px,1.6fr)_230px_230px_340px] gap-4 bg-slate-100/5 px-5 py-4 text-sm font-medium text-slate-300 lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span>Summa / darbības</span></div>
-            <div className="divide-y divide-white/10">
+      <section className="pipboy-panel rounded-[28px] p-4 md:p-6">
+        {isLoading ? <div className="pipboy-surface px-4 py-6 text-sm pipboy-subtle">Ielādējam rēķinus...</div> : filtered.length === 0 ? <div className="pipboy-empty px-5 py-8 text-base leading-8">Nekas neatbilst atlasītajiem filtriem.</div> : (
+          <div className="overflow-hidden rounded-[24px] border border-[rgba(0,255,70,0.12)]">
+            <div className="hidden grid-cols-[140px_minmax(220px,1.6fr)_230px_230px_340px] gap-4 bg-[rgba(9,19,9,0.9)] px-5 py-4 text-sm font-medium text-[rgba(184,255,184,0.82)] lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span>Summa / darbības</span></div>
+            <div className="divide-y divide-[rgba(0,255,70,0.08)]">
               {filtered.map((invoice) => (
                 <article key={invoice.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[140px_minmax(220px,1.6fr)_230px_230px_340px] lg:items-center">
-                  <div className="text-base font-medium text-white">{formatDate(invoice.issue_date)}</div>
-                  <div className="min-w-0"><p className="truncate text-lg font-semibold text-white">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-1 truncate text-sm text-slate-400">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
-                  <div><p className="text-base font-semibold text-white">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-1 text-sm text-slate-400">Termiņš: {formatDate(invoice.due_date)}</p></div>
-                  <div className="space-y-2"><span className={pill[invoice.status]}>{labels[invoice.status]}</span><div className="relative"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-emerald-400/50 disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></div>
-                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold text-white">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
+                  <div className="text-base font-medium text-[#efffeb]">{formatDate(invoice.issue_date)}</div>
+                  <div className="min-w-0"><p className="truncate text-lg font-semibold pipboy-title">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-1 truncate text-sm pipboy-subtle">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
+                  <div><p className="text-base font-semibold pipboy-accent-strong">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-1 text-sm pipboy-subtle">Termiņš: {formatDate(invoice.due_date)}</p></div>
+                  <div className="space-y-2"><span className={pill[invoice.status]}>{labels[invoice.status]}</span><div className="relative"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="pipboy-input appearance-none px-4 py-3 pr-10 text-sm disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></div>
+                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold pipboy-accent-strong">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button pipboy-button-warning px-3 py-2 text-sm font-medium disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
                 </article>
               ))}
             </div>
@@ -390,9 +390,9 @@ export function InvoicesPage() {
 }
 
 function Stat(props: { title: string; value: string; compact?: boolean; accent?: boolean }) {
-  return <article className={cn('rounded-[24px] border border-white/10 bg-slate-900/40 p-5', props.compact && 'rounded-3xl')}><p className="text-sm uppercase tracking-[0.22em] text-slate-500">{props.title}</p><p className={cn('mt-3 text-3xl font-semibold text-white', props.compact && 'text-2xl', props.accent && 'text-emerald-300')}>{props.value}</p></article>
+  return <article className={cn('pipboy-stat p-5', props.compact && 'rounded-3xl')}><p className="pipboy-stat-label text-sm">{props.title}</p><p className={cn('mt-3 text-3xl font-semibold', props.compact && 'text-2xl', props.accent ? 'pipboy-stat-value' : 'text-[#efffeb]')}>{props.value}</p></article>
 }
 
 function Field(props: { title: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-2 block text-sm text-slate-400">{props.title}</span>{props.children}</label>
+  return <label className="block"><span className="pipboy-field-label">{props.title}</span>{props.children}</label>
 }

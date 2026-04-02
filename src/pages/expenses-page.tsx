@@ -264,14 +264,14 @@ export function ExpensesPage() {
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+      <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-4">
-              <h3 className="text-3xl font-semibold text-white">Izdevumi</h3>
-              <p className="text-base text-slate-300">Kalendārā gada izdevumi: <span className="font-semibold text-white">{formatCurrency(summary.yearTotal)}</span></p>
+              <h3 className="pipboy-title text-3xl font-semibold">Izdevumi</h3>
+              <p className="pipboy-subtle text-base">Kalendārā gada izdevumi: <span className="pipboy-accent-strong font-semibold">{formatCurrency(summary.yearTotal)}</span></p>
             </div>
-            <p className="mt-3 max-w-3xl text-base leading-8 text-slate-300">Filtrē izdevumus pēc mēneša, kategorijas vai piegādātāja un pārvaldi failus no viena skata.</p>
+            <p className="pipboy-subtle mt-3 max-w-3xl text-base leading-8">Filtrē izdevumus pēc mēneša, kategorijas vai piegādātāja un pārvaldi failus no viena skata.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 xl:justify-end">
             <button type="button" onClick={clearFilters} className="pipboy-button px-5 py-3 font-medium">Notīrīt filtrus</button>
@@ -291,46 +291,46 @@ export function ExpensesPage() {
           <Field title="Kategorija"><div className="relative"><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as 'all' | ExpenseCategory)} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 pr-10 text-white outline-none focus:border-emerald-400/50"><option value="all">Visas kategorijas</option>{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></Field>
           <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 py-3 pl-11 pr-4 text-white outline-none focus:border-emerald-400/50" placeholder="Meklē pēc piegādātāja vai apraksta" /></div></Field>
         </div>
-        {feedback ? <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm leading-6 text-slate-200">{feedback}</div> : null}
+        {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>
 
       {showComposer ? (
-        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+        <section className="pipboy-panel rounded-[28px] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h4 className="text-2xl font-semibold text-white">{editingExpenseId ? 'Rediģēt izdevumu' : 'Jauns izdevums'}</h4>
-              <p className="mt-2 text-sm leading-7 text-slate-400">Saglabā summu, kategoriju, piegādātāju un, ja vajag, pievieno čeka vai rēķina failu.</p>
+              <h4 className="pipboy-title text-2xl font-semibold">{editingExpenseId ? 'Rediģēt izdevumu' : 'Jauns izdevums'}</h4>
+              <p className="pipboy-subtle mt-2 text-sm leading-7">Saglabā summu, kategoriju, piegādātāju un, ja vajag, pievieno čeka vai rēķina failu.</p>
             </div>
-            <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="pipboy-button h-11 w-11 rounded-full text-slate-200" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
+            <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="pipboy-button h-11 w-11 rounded-full" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
           </div>
 
           <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field title="Datums"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
-              <Field title="Kategorija"><select value={category} onChange={(event) => setCategory(event.target.value as ExpenseCategory)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50">{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
-              <Field title="Summa"><input value={amount} onChange={(event) => setAmount(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="0,00" /></Field>
-              <Field title="PVN summa"><input value={vatAmount} onChange={(event) => setVatAmount(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="0,00" /></Field>
-              <Field title="Piegādātājs"><input value={vendor} onChange={(event) => setVendor(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Uzņēmuma vai personas nosaukums" /></Field>
-              <Field title="Čeks vai rēķina fails"><label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-white/15 bg-slate-900/50 px-4 py-4 text-slate-300 transition hover:border-emerald-400/40 hover:bg-slate-900/70"><FileUp className="h-5 w-5 text-emerald-300" /><span className="text-sm">{receiptFile ? receiptFile.name : existingReceiptPath ? 'Esošais fails saglabāts' : 'Izvēlies attēlu vai PDF failu'}</span><input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" className="hidden" onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)} /></label></Field>
-              <div className="md:col-span-2"><Field title="Apraksts"><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" placeholder="Par ko bija šis izdevums" /></Field></div>
+              <Field title="Datums"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+              <Field title="Kategorija"><select value={category} onChange={(event) => setCategory(event.target.value as ExpenseCategory)} className="pipboy-input px-4 py-3">{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
+              <Field title="Summa"><input value={amount} onChange={(event) => setAmount(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0,00" /></Field>
+              <Field title="PVN summa"><input value={vatAmount} onChange={(event) => setVatAmount(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0,00" /></Field>
+              <Field title="Piegādātājs"><input value={vendor} onChange={(event) => setVendor(event.target.value)} className="pipboy-input px-4 py-3" placeholder="Uzņēmuma vai personas nosaukums" /></Field>
+              <Field title="Čeks vai rēķina fails"><label className="pipboy-empty flex cursor-pointer items-center gap-3 px-4 py-4 transition hover:border-[rgba(57,255,20,0.32)] hover:bg-[rgba(9,22,9,0.9)]"><FileUp className="h-5 w-5 pipboy-accent-strong" /><span className="text-sm">{receiptFile ? receiptFile.name : existingReceiptPath ? 'Esošais fails saglabāts' : 'Izvēlies attēlu vai PDF failu'}</span><input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" className="hidden" onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)} /></label></Field>
+              <div className="md:col-span-2"><Field title="Apraksts"><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className="pipboy-input px-4 py-3" placeholder="Par ko bija šis izdevums" /></Field></div>
             </div>
             <div className="flex gap-3"><button type="submit" disabled={isSaving} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">{isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}{isSaving ? 'Saglabājam...' : editingExpenseId ? 'Saglabāt izmaiņas' : 'Pievienot izdevumu'}</button></div>
           </form>
         </section>
       ) : null}
 
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-4 md:p-6">
-        {isLoading ? <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-300">Ielādējam izdevumus...</div> : filtered.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 bg-slate-900/70 px-5 py-8 text-base leading-8 text-slate-400">Nekas neatbilst atlasītajiem filtriem.</div> : (
-          <div className="overflow-hidden rounded-[24px] border border-white/10">
-            <div className="hidden grid-cols-[140px_minmax(220px,1.4fr)_180px_180px_290px] gap-4 bg-slate-100/5 px-5 py-4 text-sm font-medium text-slate-300 lg:grid"><span>Datums</span><span>Piegādātājs / apraksts</span><span>Kategorija</span><span>Fails</span><span>Summa / darbības</span></div>
-            <div className="divide-y divide-white/10">
+      <section className="pipboy-panel rounded-[28px] p-4 md:p-6">
+        {isLoading ? <div className="pipboy-surface px-4 py-6 text-sm pipboy-subtle">Ielādējam izdevumus...</div> : filtered.length === 0 ? <div className="pipboy-empty px-5 py-8 text-base leading-8">Nekas neatbilst atlasītajiem filtriem.</div> : (
+          <div className="overflow-hidden rounded-[24px] border border-[rgba(0,255,70,0.12)]">
+            <div className="hidden grid-cols-[140px_minmax(220px,1.4fr)_180px_180px_290px] gap-4 bg-[rgba(9,19,9,0.9)] px-5 py-4 text-sm font-medium text-[rgba(184,255,184,0.82)] lg:grid"><span>Datums</span><span>Piegādātājs / apraksts</span><span>Kategorija</span><span>Fails</span><span>Summa / darbības</span></div>
+            <div className="divide-y divide-[rgba(0,255,70,0.08)]">
               {filtered.map((expense) => (
                 <article key={expense.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[140px_minmax(220px,1.4fr)_180px_180px_290px] lg:items-center">
-                  <div className="text-base font-medium text-white">{formatDate(expense.date)}</div>
-                  <div className="min-w-0"><p className="truncate text-lg font-semibold text-white">{expense.vendor || 'Bez piegādātāja nosaukuma'}</p><p className="mt-1 truncate text-sm text-slate-400">{expense.description || 'Izdevumu ieraksts'}</p></div>
-                  <div><span className="inline-flex rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-emerald-100">{getCategoryLabel(expense.category)}</span></div>
-                  <div>{expense.receipt_url ? <a className="pipboy-button px-4 py-2 text-sm" href={expense.receipt_url} target="_blank" rel="noreferrer">Atvērt failu</a> : <span className="text-sm text-slate-500">Nav faila</span>}</div>
-                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><div><p className="text-2xl font-semibold text-white">{formatCurrency(expense.amount)}</p><p className="mt-1 text-sm text-slate-400">PVN: {formatCurrency(expense.vat_amount)}</p></div><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => openEditor(expense, false)} className="pipboy-button px-3 py-2 text-sm font-medium"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => openEditor(expense, true)} className="pipboy-button px-3 py-2 text-sm font-medium"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
+                  <div className="text-base font-medium text-[#efffeb]">{formatDate(expense.date)}</div>
+                  <div className="min-w-0"><p className="truncate text-lg font-semibold pipboy-title">{expense.vendor || 'Bez piegādātāja nosaukuma'}</p><p className="mt-1 truncate text-sm pipboy-subtle">{expense.description || 'Izdevumu ieraksts'}</p></div>
+                  <div><span className="pipboy-status pipboy-status-paid">{getCategoryLabel(expense.category)}</span></div>
+                  <div>{expense.receipt_url ? <a className="pipboy-button px-4 py-2 text-sm" href={expense.receipt_url} target="_blank" rel="noreferrer">Atvērt failu</a> : <span className="text-sm pipboy-subtle">Nav faila</span>}</div>
+                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><div><p className="text-2xl font-semibold pipboy-accent-strong">{formatCurrency(expense.amount)}</p><p className="mt-1 text-sm pipboy-subtle">PVN: {formatCurrency(expense.vat_amount)}</p></div><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => openEditor(expense, false)} className="pipboy-button px-3 py-2 text-sm font-medium"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => openEditor(expense, true)} className="pipboy-button pipboy-button-warning px-3 py-2 text-sm font-medium"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
                 </article>
               ))}
             </div>
@@ -342,9 +342,9 @@ export function ExpensesPage() {
 }
 
 function Stat(props: { title: string; value: string }) {
-  return <article className="rounded-[24px] border border-white/10 bg-slate-900/40 p-5"><p className="text-sm uppercase tracking-[0.22em] text-slate-500">{props.title}</p><p className="mt-3 text-3xl font-semibold text-white">{props.value}</p></article>
+  return <article className="pipboy-stat p-5"><p className="pipboy-stat-label text-sm">{props.title}</p><p className="pipboy-stat-value mt-3 text-3xl font-semibold">{props.value}</p></article>
 }
 
 function Field(props: { title: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-2 block text-sm text-slate-400">{props.title}</span>{props.children}</label>
+  return <label className="block"><span className="pipboy-field-label">{props.title}</span>{props.children}</label>
 }

@@ -151,10 +151,10 @@ export function ClientsPage() {
       <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-semibold text-[#efffeb]">
+            <h3 className="pipboy-title text-2xl font-semibold">
               {editingId ? 'Rediģēt klientu' : 'Pievienot klientu'}
             </h3>
-            <p className="mt-2 text-base leading-8 text-[rgba(184,255,184,0.8)]">
+            <p className="pipboy-subtle mt-2 text-base leading-8">
               Saglabā klientu rekvizītus, lai rēķina izveide vēlāk būtu ātra un bez
               atkārtotas manuālas rakstīšanas.
             </p>
@@ -223,8 +223,8 @@ export function ClientsPage() {
       <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-semibold text-[#efffeb]">Klientu saraksts</h3>
-            <p className="mt-2 text-base leading-8 text-[rgba(184,255,184,0.8)]">
+            <h3 className="pipboy-title text-2xl font-semibold">Klientu saraksts</h3>
+            <p className="pipboy-subtle mt-2 text-base leading-8">
               Šis saraksts vēlāk kalpos kā pamats rēķinu formai un ātrai klientu atlasei.
             </p>
           </div>
@@ -251,7 +251,7 @@ export function ClientsPage() {
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-2">
-                    <h4 className="text-lg font-semibold text-[#efffeb]">{client.name}</h4>
+                    <h4 className="pipboy-title text-lg font-semibold">{client.name}</h4>
                     <p className="text-sm text-[rgba(184,255,184,0.82)]">
                       {client.reg_number || 'Nav norādīts reģistrācijas numurs'}
                     </p>
@@ -299,13 +299,13 @@ function ClientField(props: {
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm text-[rgba(184,255,184,0.8)]">{props.label}</span>
+      <span className="pipboy-field-label">{props.label}</span>
       <input
         required={props.required}
         type={props.type ?? 'text'}
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
-        className="w-full rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(7,17,7,0.84)] px-4 py-3 text-[#efffeb] outline-none transition placeholder:text-[rgba(184,255,184,0.4)] focus:border-[rgba(57,255,20,0.42)] focus:bg-[rgba(9,22,9,0.94)]"
+        className="pipboy-input px-4 py-3"
       />
     </label>
   )
