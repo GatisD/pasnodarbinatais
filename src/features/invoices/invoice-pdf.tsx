@@ -59,16 +59,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
   },
+  titleBlock: {
+    maxWidth: 250,
+    paddingTop: 2,
+  },
   title: {
     color: '#0f172a',
     fontSize: 28,
     fontWeight: 700,
-    marginBottom: 8,
+    lineHeight: 1.05,
+    marginBottom: 12,
   },
   muted: {
     color: '#475569',
-    fontSize: 10,
-    marginBottom: 2,
+    fontSize: 11,
+    marginBottom: 4,
   },
   metaTable: {
     minWidth: 210,
@@ -230,21 +235,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     marginBottom: 18,
   },
-  footer: {
-    alignItems: 'flex-end',
+  footerNote: {
     borderTop: '1 solid #dbe4ee',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    color: '#64748b',
+    fontSize: 8,
     paddingTop: 14,
-  },
-  footerLeft: {
-    color: '#64748b',
-    fontSize: 8,
-    maxWidth: 300,
-  },
-  footerRight: {
-    color: '#64748b',
-    fontSize: 8,
     textAlign: 'right',
   },
 })
@@ -315,13 +310,12 @@ function amountToWordsLv(value: number) {
 export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
   const clientAddress = joinDefined([data.client.address])
   const issuerAddress = joinDefined([data.profile.address])
-  const issuerFooter = joinDefined([data.profile.regNumber, data.profile.email, data.profile.address])
 
   return (
     <Document title={data.invoiceNumber}>
       <Page size="A4" style={styles.page}>
         <View style={styles.topRow}>
-          <View>
+          <View style={styles.titleBlock}>
             <Text style={styles.title}>Rēķins</Text>
             {data.profile.regNumber ? <Text style={styles.muted}>Reģistrācijas numurs: {data.profile.regNumber}</Text> : null}
             {data.profile.email ? <Text style={styles.muted}>E-pasts: {data.profile.email}</Text> : null}
@@ -449,10 +443,7 @@ export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
 
         <Text style={styles.legalNote}>Dokuments ir sagatavots elektroniski un ir derīgs bez paraksta.</Text>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerLeft}>{issuerFooter || 'Pašnodarbinātā rekvizīti aizpildāmi profilā.'}</Text>
-          <Text style={styles.footerRight}>Rēķins sagatavots lietotnē{"\n"}Pašnodarbinātā uzskaite</Text>
-        </View>
+        <Text style={styles.footerNote}>Rēķins sagatavots lietotnē Pašnodarbinātā uzskaite</Text>
       </Page>
     </Document>
   )
