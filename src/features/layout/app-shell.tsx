@@ -26,13 +26,19 @@ export function AppShell({ children }: PropsWithChildren) {
   }
 
   return (
-    <div className="pipboy-grid min-h-screen bg-[#061008] text-[#d6ffdc]">
+    <div className="pipboy-grid min-h-screen bg-[#020502] text-[#d6ffdc]">
       <div className="mx-auto grid min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:grid-cols-[320px_1fr] lg:px-8 lg:py-8">
         <aside className="pipboy-shell pipboy-panel rounded-[28px] p-6 backdrop-blur">
-          <div className="border-b border-[rgba(132,255,157,0.12)] pb-6">
+          <div className="border-b border-[rgba(0,255,70,0.14)] pb-6">
             <Link to="/" className="block">
               <p className="pipboy-accent text-xs uppercase tracking-[0.4em]">Vault Ledger</p>
-              <h1 className="pipboy-title mt-3 text-[2rem] font-semibold tracking-[0.02em]">Pašnodarbinātā uzskaite</h1>
+              <div className="mt-4 flex min-h-[154px] items-center justify-center rounded-[20px] border border-[rgba(0,255,70,0.18)] bg-[radial-gradient(circle_at_center,rgba(0,255,65,0.14),rgba(2,6,2,0.9)_68%)] px-3 py-4 shadow-[inset_0_0_24px_rgba(0,255,65,0.08),0_0_18px_rgba(0,255,65,0.08)]">
+                <img
+                  src="/media/pipboy.gif"
+                  alt="Pip-Boy"
+                  className="h-[136px] w-full object-contain mix-blend-screen"
+                />
+              </div>
             </Link>
           </div>
 
@@ -48,8 +54,8 @@ export function AppShell({ children }: PropsWithChildren) {
                     cn(
                       'flex items-center gap-3 rounded-2xl border px-4 py-3 text-lg transition',
                       isActive
-                        ? 'border-[rgba(132,255,157,0.24)] bg-[rgba(102,255,122,0.12)] text-[#f3fff5] shadow-[0_0_20px_rgba(102,255,122,0.08)]'
-                        : 'border-transparent text-[rgba(214,255,220,0.74)] hover:border-[rgba(132,255,157,0.12)] hover:bg-[rgba(132,255,157,0.05)] hover:text-[#f3fff5]',
+                        ? 'border-[rgba(57,255,20,0.28)] bg-[rgba(0,255,65,0.12)] text-[#efffeb] shadow-[0_0_22px_rgba(0,255,65,0.12)]'
+                        : 'border-transparent text-[rgba(184,255,184,0.78)] hover:border-[rgba(0,255,70,0.14)] hover:bg-[rgba(0,255,65,0.06)] hover:text-[#f3fff5]',
                     )
                   }
                 >
@@ -60,17 +66,17 @@ export function AppShell({ children }: PropsWithChildren) {
             })}
           </nav>
 
-          <div className="mt-8 rounded-3xl border border-[rgba(132,255,157,0.14)] bg-[rgba(6,16,8,0.72)] px-5 py-5">
+          <div className="mt-8 rounded-3xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.72)] px-5 py-5">
             <div className="min-w-0">
               <p className="truncate text-base font-medium text-[#f3fff5]">{user?.email ?? 'Nav aktīvas sesijas'}</p>
-              <p className="mt-1 text-sm text-[rgba(214,255,220,0.62)]">
+              <p className="mt-1 text-sm text-[rgba(184,255,184,0.62)]">
                 {isSupabaseConfigured ? 'Supabase pieslēgts' : 'Gaida .env iestatījumus'}
               </p>
             </div>
             <button
               type="button"
               onClick={handleSignOut}
-              className="mt-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(132,255,157,0.14)] bg-[rgba(132,255,157,0.06)] text-[#d6ffdc] transition hover:bg-[rgba(132,255,157,0.12)]"
+              className="pipboy-button pipboy-button-primary mt-4 h-12 w-12 rounded-full p-0"
               aria-label="Izlogoties"
             >
               <LogOut className="h-5 w-5" />
