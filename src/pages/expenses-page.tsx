@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Copy, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 
+import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { parseNumber, roundMoney } from '@/lib/numbers'
@@ -287,7 +288,7 @@ export function ExpensesPage() {
         </div>
 
         <div className="mt-6 grid gap-3 xl:grid-cols-[220px_240px_1fr]">
-          <Field title="Mēnesis"><input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+          <Field title="Mēnesis"><PickerInput type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} /></Field>
           <Field title="Kategorija"><div className="relative"><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as 'all' | ExpenseCategory)} className="pipboy-input w-full appearance-none px-4 py-3 pr-10"><option value="all">Visas kategorijas</option>{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></Field>
           <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-3 pl-11 pr-4" placeholder="Meklē pēc piegādātāja vai apraksta" /></div></Field>
         </div>
@@ -306,7 +307,7 @@ export function ExpensesPage() {
 
           <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field title="Datums"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+              <Field title="Datums"><PickerInput type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>
               <Field title="Kategorija"><select value={category} onChange={(event) => setCategory(event.target.value as ExpenseCategory)} className="pipboy-input px-4 py-3">{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
               <Field title="Summa"><input value={amount} onChange={(event) => setAmount(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0,00" /></Field>
               <Field title="PVN summa"><input value={vatAmount} onChange={(event) => setVatAmount(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0,00" /></Field>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer'
 import { ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 
+import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { InvoicePdfDocument, type InvoicePdfData } from '@/features/invoices/invoice-pdf'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -81,6 +82,27 @@ function toEditableItems(rows: InvoiceItemRow[]): Item[] {
   return rows.map((item) => ({ description: item.description, quantity: String(item.quantity), unit: item.unit, unit_price: String(item.unit_price) }))
 }
 
+function buildGeneratedInvoiceNumber(issueDate: string, invoices: Invoice[], excludeId?: string | null) {
+  const year = new Date(issueDate).getFullYear()
+  const prefix = `R-${year}-`
+  const usedNumbers = new Set(
+    invoices
+      .filter((invoice) => invoice.id !== excludeId)
+      .map((invoice) => invoice.invoice_number)
+      .filter((value): value is string => Boolean(value)),
+  )
+
+  let counter = 1
+  let candidate = `${prefix}${String(counter).padStart(3, '0')}`
+
+  while (usedNumbers.has(candidate)) {
+    counter += 1
+    candidate = `${prefix}${String(counter).padStart(3, '0')}`
+  }
+
+  return candidate
+}
+
 export function InvoicesPage() {
   const { user } = useAuth()
   const [clients, setClients] = useState<Client[]>([])
@@ -123,9 +145,7 @@ export function InvoicesPage() {
   const vatRateValue = parseNumber(vatRate)
   const vatAmount = roundMoney(subtotal * (vatRateValue / 100))
   const total = roundMoney(subtotal + vatAmount)
-  const draftNumber = editingInvoiceId
-    ? invoices.find((invoice) => invoice.id === editingInvoiceId)?.invoice_number ?? `R-${new Date(issueDate).getFullYear()}-001`
-    : sourceInvoiceNumber ?? `R-${new Date(issueDate).getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`
+  const draftNumber = (sourceInvoiceNumber?.trim() || null) ?? buildGeneratedInvoiceNumber(issueDate, invoices, editingInvoiceId)
 
   const draftPdf: InvoicePdfData = {
     client: { address: selectedClient?.address, bankIban: selectedClient?.bank_iban, email: selectedClient?.email, name: selectedClient?.name ?? 'Klients nav izvēlēts', regNumber: selectedClient?.reg_number },
@@ -238,8 +258,19 @@ export function InvoicesPage() {
     setIsSaving(true)
     setFeedback(null)
 
+    const duplicateNumber = invoices.find(
+      (invoice) =>
+        invoice.id !== editingInvoiceId &&
+        (invoice.invoice_number ?? '').trim().toLowerCase() === draftNumber.trim().toLowerCase(),
+    )
+
+    if (duplicateNumber) {
+      setFeedback(`Rēķina numurs ${draftNumber} jau tiek izmantots.`)
+      return void setIsSaving(false)
+    }
+
     if (editingInvoiceId) {
-      const { error: invoiceError } = await supabase.from('invoices').update({ client_id: clientId, due_date: dueDate, issue_date: issueDate, notes: notes || null, subtotal, total, vat_amount: vatAmount, vat_rate: vatRateValue / 100 }).eq('id', editingInvoiceId)
+      const { error: invoiceError } = await supabase.from('invoices').update({ client_id: clientId, due_date: dueDate, invoice_number: draftNumber, issue_date: issueDate, notes: notes || null, subtotal, total, vat_amount: vatAmount, vat_rate: vatRateValue / 100 }).eq('id', editingInvoiceId)
       if (invoiceError) {
         setFeedback(getFriendlySupabaseError(invoiceError.message))
         return void setIsSaving(false)
@@ -261,7 +292,7 @@ export function InvoicesPage() {
       return void loadInvoices()
     }
 
-    const { data: invoice, error } = await supabase.from('invoices').insert({ client_id: clientId, due_date: dueDate, invoice_number: sourceInvoiceNumber, issue_date: issueDate, notes: notes || null, status: 'izrakstits', subtotal, total, user_id: user.id, vat_amount: vatAmount, vat_rate: vatRateValue / 100 }).select('id').single()
+    const { data: invoice, error } = await supabase.from('invoices').insert({ client_id: clientId, due_date: dueDate, invoice_number: draftNumber, issue_date: issueDate, notes: notes || null, status: 'izrakstits', subtotal, total, user_id: user.id, vat_amount: vatAmount, vat_rate: vatRateValue / 100 }).select('id').single()
     if (error || !invoice) {
       setFeedback(getFriendlySupabaseError(error?.message ?? 'Neizdevās saglabāt rēķinu.'))
       return void setIsSaving(false)
@@ -571,7 +602,7 @@ export function InvoicesPage() {
         </div>
 
         <div className="mt-6 grid gap-3 xl:grid-cols-[220px_220px_1fr]">
-          <Field title="Mēnesis"><input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+          <Field title="Mēnesis"><PickerInput type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} /></Field>
           <Field title="Statuss"><div className="relative"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | Status)} className="pipboy-input w-full appearance-none px-4 py-3 pr-10"><option value="all">Visi statusi</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></Field>
           <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-3 pl-11 pr-4" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field>
         </div>
@@ -591,10 +622,18 @@ export function InvoicesPage() {
 
             <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
+                <Field title="Rēķina numurs">
+                  <input
+                    value={sourceInvoiceNumber ?? ''}
+                    onChange={(event) => setSourceInvoiceNumber(event.target.value || null)}
+                    className="pipboy-input px-4 py-3"
+                    placeholder="Atstāj tukšu autoģenerācijai"
+                  />
+                </Field>
                 <Field title="Klients"><select value={clientId} onChange={(event) => setClientId(event.target.value)} className="pipboy-input px-4 py-3"><option value="">Izvēlies klientu</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
                 <Field title="PVN likme (%)"><input value={vatRate} onChange={(event) => setVatRate(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0" /></Field>
-                <Field title="Izrakstīšanas datums"><input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
-                <Field title="Apmaksas termiņš"><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+                <Field title="Izrakstīšanas datums"><PickerInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
+                <Field title="Apmaksas termiņš"><PickerInput type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
               </div>
 
               <div className="space-y-4">

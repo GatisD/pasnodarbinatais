@@ -234,6 +234,52 @@ button {
   color: rgba(184, 255, 184, 0.4);
 }
 
+.pipboy-picker {
+  position: relative;
+}
+
+.pipboy-picker-input {
+  cursor: pointer;
+  color-scheme: dark;
+}
+
+.pipboy-picker-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.pipboy-picker-button {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 70, 0.12);
+  background: rgba(0, 255, 65, 0.08);
+  color: var(--color-pip-green-soft);
+  transform: translateY(-50%);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.pipboy-picker-button:hover {
+  border-color: rgba(57, 255, 20, 0.3);
+  background: rgba(0, 255, 65, 0.16);
+  color: #efffeb;
+  box-shadow: 0 0 14px rgba(57, 255, 20, 0.12);
+}
+
 .pipboy-field-label {
   margin-bottom: 0.5rem;
   display: block;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Euro, FileSpreadsheet, Hourglass, Wallet } from 'lucide-react'
 
+import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { roundMoney } from '@/lib/numbers'
@@ -231,12 +232,7 @@ export function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-              className="pipboy-input px-4 py-3"
-            />
+            <PickerInput type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} />
             <button
               type="button"
               onClick={() => setSelectedMonth(startMonthKey())}
