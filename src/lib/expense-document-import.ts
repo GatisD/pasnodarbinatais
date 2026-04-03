@@ -38,10 +38,37 @@ type TextBit = {
   transform: number[]
 }
 
+const monthLookup: Record<string, string> = {
+  jan: '01',
+  january: '01',
+  feb: '02',
+  february: '02',
+  mar: '03',
+  march: '03',
+  apr: '04',
+  april: '04',
+  may: '05',
+  jun: '06',
+  june: '06',
+  jul: '07',
+  july: '07',
+  aug: '08',
+  august: '08',
+  sep: '09',
+  sept: '09',
+  september: '09',
+  oct: '10',
+  october: '10',
+  nov: '11',
+  november: '11',
+  dec: '12',
+  december: '12',
+}
+
 let ocrWorkerPromise: Promise<Awaited<ReturnType<typeof createWorker>>> | null = null
 
 function normalizeLine(value: string) {
-  return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim()
+  return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').replace(/\0/g, ' ').trim()
 }
 
 function normalizeText(value: string) {
@@ -54,39 +81,32 @@ function normalizeText(value: string) {
 }
 
 function parseDecimal(value: string) {
-  return Number(value.replace(/\s/g, '').replace(',', '.'))
+  const cleaned = value.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function toIsoDate(value: string) {
-  const normalized = value.trim()
+  const normalized = normalizeLine(value)
   const dotted = normalized.match(/(\d{2})[./-](\d{2})[./-](\d{4})/)
   if (dotted) return `${dotted[3]}-${dotted[2]}-${dotted[1]}`
 
   const iso = normalized.match(/(\d{4})-(\d{2})-(\d{2})/)
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`
 
-  const english = normalized.match(/(\d{2})-([A-Z]{3})-(\d{4})/i)
-  if (english) {
-    const month = monthLookup[english[2].toUpperCase()]
-    if (month) return `${english[3]}-${month}-${english[1]}`
+  const shortMonth = normalized.match(/(\d{2})-([A-Z]{3})-(\d{4})/i)
+  if (shortMonth) {
+    const month = monthLookup[shortMonth[2].toLowerCase()]
+    if (month) return `${shortMonth[3]}-${month}-${shortMonth[1]}`
+  }
+
+  const englishMonth = normalized.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/)
+  if (englishMonth) {
+    const month = monthLookup[englishMonth[1].toLowerCase()]
+    if (month) return `${englishMonth[3]}-${month}-${englishMonth[2].padStart(2, '0')}`
   }
 
   return ''
-}
-
-const monthLookup: Record<string, string> = {
-  JAN: '01',
-  FEB: '02',
-  MAR: '03',
-  APR: '04',
-  MAY: '05',
-  JUN: '06',
-  JUL: '07',
-  AUG: '08',
-  SEP: '09',
-  OCT: '10',
-  NOV: '11',
-  DEC: '12',
 }
 
 function extractOrderedLines(pageItems: TextBit[]) {
@@ -149,36 +169,52 @@ async function extractImageText(file: File) {
 
 function inferCategory(vendor: string, description: string) {
   const haystack = `${vendor} ${description}`.toLowerCase()
-  if (/(adobe|acrobat|creative cloud)/.test(haystack)) return 'programmatura'
-  if (/(hostnet|hostinger|hosting|domain|domēn|domēna|server)/.test(haystack)) return 'majaslapa'
-  if (/(circle k|neste|virsi|degviela|diesel|benz|fuel)/.test(haystack)) return 'degviela'
-  if (/(master foto|foto|kamera|printeris|aprīkoj|aprikoj)/.test(haystack)) return 'aprikojums'
-  if (/(bank|swedbank|seb|komisij)/.test(haystack)) return 'bankas_komisija'
+  if (/(adobe|acrobat|creative cloud|anthropic|claude|openai|chatgpt|cursor)/.test(haystack)) return 'programmatura'
+  if (/(hostnet|hostinger|hosting|domain|domēn|server|vercel|cloudflare)/.test(haystack)) return 'majaslapa'
+  if (/(circle k|neste|virši|virsi|degviela|diesel|benz|fuel)/.test(haystack)) return 'degviela'
+  if (/(master foto|foto|kamera|printer|aprīkoj|aprikoj)/.test(haystack)) return 'aprikojums'
+  if (/(swedbank|seb|banka|bank|komisij)/.test(haystack)) return 'bankas_komisija'
+  if (/(reklāma|ads|facebook ads|google ads)/.test(haystack)) return 'reklama'
   return 'citi'
 }
 
 function fallbackAmount(text: string) {
-  const matches = [...text.matchAll(/(\d+(?:[.,]\d{2}))\s*EUR/gi)].map((match) => parseDecimal(match[1]))
-  return matches.at(-1) ?? 0
+  const euroMatches = [...text.matchAll(/(?:€|EUR)\s*([0-9]+(?:[.,][0-9]{2})?)|([0-9]+(?:[.,][0-9]{2})?)\s*(?:€|EUR)/gi)]
+    .map((match) => parseDecimal(match[1] || match[2] || '0'))
+    .filter((value) => value > 0)
+
+  return euroMatches.at(-1) ?? 0
+}
+
+function firstMatch(text: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    if (match?.[1]) return normalizeLine(match[1])
+  }
+  return ''
 }
 
 function parseAdobePdf(text: string): ParsedExpenseDocument | null {
   if (!/Adobe Systems Software Ireland Ltd/i.test(text)) return null
 
-  const invoiceNumber = text.match(/(\d{10})\s+Invoice Number/i)?.[1] ?? null
-  const issueDate = toIsoDate(text.match(/(\d{2}-[A-Z]{3}-\d{4})\s+Invoice Date/i)?.[1] ?? '')
-  const amount = parseDecimal(text.match(/GRAND TOTAL \(EUR\)\s+(\d+(?:[.,]\d+)?)/i)?.[1] ?? '0')
-  const vatAmount = parseDecimal(text.match(/TAXES \(SEE DETAILS FOR RATES\)\s+(\d+(?:[.,]\d+)?)/i)?.[1] ?? '0')
-  const descriptions = [...text.matchAll(/\d{5,}\s+(.+?)\s+\d+\s+EA\s+\d+(?:[.,]\d+)?\s+\d+(?:[.,]\d+)?\s+\d+(?:[.,]\d+)?%\s+\d+(?:[.,]\d+)?\s+\d+(?:[.,]\d+)?/g)]
-    .map((match) => normalizeLine(match[1]))
-    .filter(Boolean)
+  const documentNumber = firstMatch(text, [/\b(\d{10})\s+Invoice Number/i]) || null
+  const date = toIsoDate(firstMatch(text, [/(\d{2}-[A-Z]{3}-\d{4})\s+Invoice Date/i]))
+  const amount = parseDecimal(firstMatch(text, [/GRAND TOTAL \(EUR\)\s+(\d+(?:[.,]\d+)?)/i]))
+  const vatAmount = parseDecimal(firstMatch(text, [/TAXES \(SEE DETAILS FOR RATES\)\s+(\d+(?:[.,]\d+)?)/i]))
+  const description =
+    [...text.matchAll(/\d{5,}\s+(.+?)\s+\d+\s+EA\s+\d+(?:[.,]\d+)?/g)]
+      .map((match) => normalizeLine(match[1]))
+      .filter(Boolean)
+      .join(', ') || 'Adobe abonements'
+
+  if (!date || amount <= 0) return null
 
   return {
     amount,
     category: 'programmatura',
-    date: issueDate,
-    description: descriptions.join(', ') || 'Adobe abonements',
-    documentNumber: invoiceNumber,
+    date,
+    description,
+    documentNumber,
     rawText: text,
     source: 'pdf',
     vatAmount,
@@ -187,86 +223,173 @@ function parseAdobePdf(text: string): ParsedExpenseDocument | null {
 }
 
 function parseHostnetPdf(text: string): ParsedExpenseDocument | null {
-  if (!/SIA Hostnet/i.test(text)) return null
+  if (!/(SIA Hostnet|Hostinger|Hostnet)/i.test(text)) return null
 
-  const invoiceNumber = text.match(/Priekšapmaksas rēķins\s+([A-Z0-9-]+)/i)?.[1] ?? null
-  const issueDate = toIsoDate(text.match(/Rēķina datums:\s*(\d{2}\/\d{2}\/\d{4})/i)?.[1] ?? '')
-  const amount = parseDecimal(
-    text.match(/Summa Apmaksai\s+(\d+(?:[.,]\d+)?)\s*EUR/i)?.[1] ??
-      text.match(/Kopā\s+(\d+(?:[.,]\d+)?)\s*EUR/i)?.[1] ??
-      '0',
+  const documentNumber =
+    firstMatch(text, [
+      /Priekšapmaksas rēķins\s+([A-Z0-9-]+)/i,
+      /Invoice number\s+([A-Z0-9-]+)/i,
+      /Rēķina numurs\s+([A-Z0-9-]+)/i,
+    ]) || null
+  const date = toIsoDate(
+    firstMatch(text, [
+      /Rēķina datums:\s*(\d{2}[./]\d{2}[./]\d{4})/i,
+      /Invoice date[:\s]+(\d{2}[./]\d{2}[./]\d{4})/i,
+    ]),
   )
-  const vatAmount = parseDecimal(text.match(/21\.00%\s*PVN\s+(\d+(?:[.,]\d+)?)\s*EUR/i)?.[1] ?? '0')
+  const amount = parseDecimal(
+    firstMatch(text, [
+      /Summa apmaksai\s+(\d+(?:[.,]\d+)?)\s*EUR/i,
+      /Kopā\s+(\d+(?:[.,]\d+)?)\s*EUR/i,
+      /Total\s+(\d+(?:[.,]\d+)?)\s*EUR/i,
+    ]),
+  )
+  const vatAmount = parseDecimal(firstMatch(text, [/21(?:[.,]00)?%\s*PVN\s+(\d+(?:[.,]\d+)?)\s*EUR/i, /VAT.*?(\d+(?:[.,]\d+)?)/i]))
   const description =
-    normalizeLine(
-      text.match(/\d+\.\s+(.+?)\s+\d+\s+\d+(?:[.,]\d+)\s*EUR\s+\d+(?:[.,]\d+)\s*EUR/i)?.[1] ??
-        'Hostinga pakalpojums',
-    ) || 'Hostinga pakalpojums'
+    firstMatch(text, [
+      /\d+\.\s+(.+?)\s+\d+\s+\d+(?:[.,]\d+)\s*EUR/i,
+      /Description\s+Qty.*?\n(.+)/i,
+    ]) || 'Hostinga pakalpojums'
+
+  if (!date || amount <= 0) return null
 
   return {
     amount,
     category: 'majaslapa',
-    date: issueDate,
+    date,
     description,
-    documentNumber: invoiceNumber,
+    documentNumber,
     rawText: text,
     source: 'pdf',
     vatAmount,
-    vendor: 'SIA Hostnet',
+    vendor: /Hostinger/i.test(text) ? 'Hostinger' : 'SIA Hostnet',
+  }
+}
+
+function parseAnthropicReceiptPdf(text: string): ParsedExpenseDocument | null {
+  if (!/(Anthropic|Claude Pro)/i.test(text)) return null
+
+  const documentNumber =
+    firstMatch(text, [/Receipt number\s+([0-9 ]{6,})/i, /Invoice number\s+([A-Z0-9 ]{6,})/i]).replace(/\s+/g, ' ') || null
+  const date = toIsoDate(firstMatch(text, [/Date paid\s+([A-Za-z]+\s+\d{1,2},\s*\d{4})/i]))
+  const amount = parseDecimal(firstMatch(text, [/Amount paid\s+€?([0-9]+(?:[.,][0-9]{2})?)/i, /Total\s+€?([0-9]+(?:[.,][0-9]{2})?)/i]))
+  const vatAmount = parseDecimal(firstMatch(text, [/VAT\s*-\s*Latvia.*?€([0-9]+(?:[.,][0-9]{2})?)/i]))
+  const description =
+    firstMatch(text, [/Description\s+Qty.*?\n([^\n]+)/i]).replace(/\s{2,}/g, ' ') || 'Claude abonements'
+
+  if (!date || amount <= 0) return null
+
+  return {
+    amount,
+    category: 'programmatura',
+    date,
+    description,
+    documentNumber,
+    rawText: text,
+    source: 'pdf',
+    vatAmount,
+    vendor: 'Anthropic, PBC',
   }
 }
 
 function parseGenericPdf(text: string): ParsedExpenseDocument | null {
-  const firstLine = text.split('\n').find(Boolean) ?? ''
-  const date = toIsoDate(text.match(/(\d{2}[./-]\d{2}[./-]\d{4}|\d{2}-[A-Z]{3}-\d{4}|\d{4}-\d{2}-\d{2})/i)?.[1] ?? '')
-  const amount = fallbackAmount(text)
-  if (!date || amount <= 0 || !firstLine) return null
+  const lines = text.split('\n').map(normalizeLine).filter(Boolean)
+  const vendor =
+    lines.find((line) => /(SIA|AS|Ltd|LLC|PBC|GmbH|Swedbank|Adobe|Anthropic|Hostnet|Hostinger)/i.test(line)) ??
+    lines.find((line) => line.length > 3) ??
+    ''
+
+  const date = toIsoDate(
+    firstMatch(text, [
+      /(\d{2}[./-]\d{2}[./-]\d{4})/,
+      /(\d{4}-\d{2}-\d{2})/,
+      /([A-Za-z]+\s+\d{1,2},\s*\d{4})/,
+      /(\d{2}-[A-Z]{3}-\d{4})/i,
+    ]),
+  )
+
+  const amount = parseDecimal(
+    firstMatch(text, [
+      /Amount paid\s+€?([0-9]+(?:[.,][0-9]{2})?)/i,
+      /Grand total.*?([0-9]+(?:[.,][0-9]{2})?)/i,
+      /Total\s+€?([0-9]+(?:[.,][0-9]{2})?)/i,
+      /Kopā\s+([0-9]+(?:[.,][0-9]{2})?)/i,
+    ]),
+  ) || fallbackAmount(text)
+
+  const vatAmount = parseDecimal(
+    firstMatch(text, [
+      /VAT.*?€?([0-9]+(?:[.,][0-9]{2})?)/i,
+      /PVN.*?([0-9]+(?:[.,][0-9]{2})?)/i,
+      /Taxes.*?([0-9]+(?:[.,][0-9]{2})?)/i,
+    ]),
+  )
+
+  const documentNumber =
+    firstMatch(text, [
+      /Receipt number\s+([A-Z0-9 -]+)/i,
+      /Invoice number\s+([A-Z0-9 -]+)/i,
+      /Rēķina numurs\s+([A-Z0-9.-]+)/i,
+      /Dok\.?\s*#?\s*([A-Z0-9-]+)/i,
+    ]) || null
+
+  if (!date || amount <= 0 || !vendor) return null
 
   return {
     amount,
-    category: inferCategory(firstLine, text),
+    category: inferCategory(vendor, text),
     date,
     description: 'Importēts PDF dokuments',
-    documentNumber: text.match(/(?:Invoice Number|Rēķins|Rēķina numurs|Dok\.?\s*#?)\s*([A-Z0-9-]+)/i)?.[1] ?? null,
+    documentNumber,
     rawText: text,
     source: 'pdf',
-    vatAmount: parseDecimal(text.match(/(?:PVN|TAXES).*?(\d+(?:[.,]\d+)?)/i)?.[1] ?? '0'),
-    vendor: firstLine,
+    vatAmount,
+    vendor,
   }
 }
 
 function parseReceiptImage(text: string): ParsedExpenseDocument | null {
   const lines = text.split('\n').map(normalizeLine).filter(Boolean)
   const vendor =
-    lines.find((line) => /(?:SIA|AS|Adobe|Hostnet|Circle K|Master Foto|Swedbank)/i.test(line)) ??
-    lines.find((line) => !/(^čeks$|^paldies|^karte$|visa|mastercard|swedbank)/i.test(line)) ??
+    lines.find((line) => /(SIA|AS|Adobe|Hostnet|Hostinger|Circle K|Master Foto|Swedbank|Anthropic)/i.test(line)) ??
+    lines.find((line) => !/(^čeks$|^paldies$|^karte$|visa|mastercard|swedbank)/i.test(line)) ??
     ''
 
   const date = toIsoDate(
-    text.match(/(\d{2}[./-]\d{2}[./-]\d{4}|\d{4}-\d{2}-\d{2})/)?.[1] ??
-      '',
+    firstMatch(text, [
+      /(\d{2}[./-]\d{2}[./-]\d{4})/,
+      /(\d{4}-\d{2}-\d{2})/,
+    ]),
   )
 
   const amount =
-    parseDecimal(text.match(/(?:KOPĀ|KOPA|SUMMA)\s*(?:EUR)?\s*[: ]\s*(\d+(?:[.,]\d+)?)/i)?.[1] ?? '0') ||
-    fallbackAmount(text)
+    parseDecimal(
+      firstMatch(text, [
+        /(?:KOPĀ|KOPA|SUMMA)\s*(?:EUR)?\s*[: ]\s*(\d+(?:[.,]\d+)?)/i,
+        /(\d+(?:[.,]\d+)?)\s*EUR/i,
+      ]),
+    ) || fallbackAmount(text)
 
   const vatAmount =
     parseDecimal(
-      text.match(/PVN[-A-Z ]*\d+(?:[.,]\d+)?%\s*(\d+(?:[.,]\d+)?)/i)?.[1] ??
-        text.match(/PVN[^0-9]{0,8}(\d+(?:[.,]\d+)?)/i)?.[1] ??
-        '0',
+      firstMatch(text, [
+        /PVN[-A-Z ]*\d+(?:[.,]\d+)?%\s*(\d+(?:[.,]\d+)?)/i,
+        /AR PVN[-A-Z ]*\d+(?:[.,]\d+)?%\s*(\d+(?:[.,]\d+)?)/i,
+        /PVN[^0-9]{0,8}(\d+(?:[.,]\d+)?)/i,
+      ]),
     ) || 0
 
   const documentNumber =
-    text.match(/DOK\.?\s*#?\s*([A-Z0-9-]+)/i)?.[1] ??
-    text.match(/Kvīts:\s*([A-Z0-9-]+)/i)?.[1] ??
-    null
+    firstMatch(text, [
+      /DOK\.?\s*#?\s*([A-Z0-9-]+)/i,
+      /Kvīts:\s*([A-Z0-9-]+)/i,
+      /DOKUMENTS\s*#?\s*([A-Z0-9-]+)/i,
+    ]) || null
 
   const itemLines = lines.filter((line) => {
     const lowered = line.toLowerCase()
     return (
-      !/(sia|swedbank|visa|mastercard|čeks|kopa|summa|pvn|karte|paldies|reģ|pvn nr|adrese|tālrunis|tel\.|eka|dok\.)/i.test(lowered) &&
+      !/(sia|swedbank|visa|mastercard|čeks|kopa|summa|pvn|karte|paldies|reģ|pvn nr|adrese|tālrunis|tel\.|eka|dok\.|kvīts|visa debit)/i.test(lowered) &&
       /[a-zāčēģīķļņōŗšūž]/i.test(line)
     )
   })
@@ -294,6 +417,7 @@ export async function parseExpenseDocument(file: File): Promise<ParsedExpenseDoc
   const parsed =
     (isPdf ? parseAdobePdf(text) : null) ??
     (isPdf ? parseHostnetPdf(text) : null) ??
+    (isPdf ? parseAnthropicReceiptPdf(text) : null) ??
     (isPdf ? parseGenericPdf(text) : null) ??
     (!isPdf ? parseReceiptImage(text) : null)
 
