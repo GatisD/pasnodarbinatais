@@ -1,4 +1,5 @@
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 type ParsedInvoiceItem = {
   description: string
@@ -27,6 +28,8 @@ type TextBit = {
   str: string
   transform: number[]
 }
+
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 function normalizeLine(value: string) {
   return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim()
