@@ -35,25 +35,41 @@ function normalizeLine(value: string) {
   return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim()
 }
 
+function normalizeForMatch(value: string) {
+  return normalizeLine(value)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+}
+
 function isNumericToken(value: string) {
   return /^-?\d+(?:[.,]\d+)?$/.test(value)
 }
 
 function parseDecimal(value: string) {
-  return Number(value.replace(',', '.'))
+  return Number(value.replace(/\s/g, '').replace(',', '.'))
 }
 
 function toIsoDate(value: string) {
-  const match = value.match(/(\d{2})\.(\d{2})\.(\d{4})/)
-  if (!match) return ''
-  return `${match[3]}-${match[2]}-${match[1]}`
+  const dotted = value.match(/(\d{2})\.(\d{2})\.(\d{4})/)
+  if (dotted) return `${dotted[3]}-${dotted[2]}-${dotted[1]}`
+
+  const slashed = value.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+  if (slashed) return `${slashed[3]}-${slashed[2]}-${slashed[1]}`
+
+  return ''
 }
 
 function getLabelValue(lines: string[], label: string) {
-  const index = lines.findIndex((line) => line.toLowerCase().startsWith(label.toLowerCase()))
+  const normalizedLabel = normalizeForMatch(label)
+  const index = lines.findIndex((line) => normalizeForMatch(line).startsWith(normalizedLabel))
   if (index === -1) return ''
-  const current = normalizeLine(lines[index].slice(label.length))
-  if (current) return current
+
+  const line = normalizeLine(lines[index])
+  const labelWordCount = normalizeLine(label).split(' ').length
+  const suffix = normalizeLine(line.split(' ').slice(labelWordCount).join(' '))
+  if (suffix) return suffix
+
   return normalizeLine(lines[index + 1] ?? '')
 }
 
@@ -62,34 +78,31 @@ function parseItemLine(line: string) {
   if (tokens.length < 5) return null
   if (!/^\d+$/.test(tokens[0])) return null
 
-  const totalToken = tokens.at(-1)
-  const unitPriceToken = tokens.at(-2)
+  const numericPositions = tokens
+    .map((token, index) => ({ token, index }))
+    .filter(({ token, index }) => index > 0 && isNumericToken(token))
 
-  if (!totalToken || !unitPriceToken || !isNumericToken(totalToken) || !isNumericToken(unitPriceToken)) {
-    return null
-  }
+  if (numericPositions.length < 3) return null
 
-  let cursor = tokens.length - 3
-  let unit = 'gab.'
-  if (cursor >= 0 && !isNumericToken(tokens[cursor])) {
-    unit = tokens[cursor]
-    cursor -= 1
-  }
+  const quantityEntry = numericPositions[0]
+  const unitPriceEntry = numericPositions[numericPositions.length - 2]
+  const totalEntry = numericPositions[numericPositions.length - 1]
 
-  if (cursor < 1 || !isNumericToken(tokens[cursor])) {
-    return null
-  }
-
-  const quantityToken = tokens[cursor]
-  const description = tokens.slice(1, cursor).join(' ').trim()
+  const description = tokens.slice(1, quantityEntry.index).join(' ').trim()
   if (!description) return null
+
+  let unit = 'gab.'
+  const maybeUnit = tokens[quantityEntry.index + 1]
+  if (maybeUnit && !isNumericToken(maybeUnit)) {
+    unit = maybeUnit
+  }
 
   return {
     description,
-    quantity: parseDecimal(quantityToken),
-    total: parseDecimal(totalToken),
+    quantity: parseDecimal(quantityEntry.token),
+    total: parseDecimal(totalEntry.token),
     unit,
-    unitPrice: parseDecimal(unitPriceToken),
+    unitPrice: parseDecimal(unitPriceEntry.token),
   }
 }
 
@@ -106,7 +119,7 @@ function extractOrderedLines(pageItems: TextBit[]) {
       return a.x - b.x
     })
 
-  const rows: Array<{ y: number; bits: typeof sorted }> = []
+  const rows: Array<{ bits: typeof sorted; y: number }> = []
   for (const item of sorted) {
     const row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2)
     if (row) row.bits.push(item)
@@ -139,7 +152,7 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
 
   const sourceInvoiceNumber =
     getLabelValue(lines, 'Rēķina numurs') ||
-    lines.find((line) => /\bR(?:ē|e)ķins\.Nr\./i.test(line)) ||
+    lines.find((line) => /\bRēķins\.Nr\./i.test(line)) ||
     null
 
   const issueDate = toIsoDate(getLabelValue(lines, 'Rēķina datums'))
@@ -150,17 +163,31 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
   const clientAddress = getLabelValue(lines, 'Adrese') || null
   const clientEmail = getLabelValue(lines, 'E-pasts') || null
 
-  const tableStart = lines.findIndex((line) => line.includes('Nosaukums') && line.includes('Daudzums') && line.includes('Cena'))
-  const totalIndex = lines.findIndex((line) => line.toLowerCase().startsWith('summa apmaksai'))
-  const requisitesIndex = lines.findIndex((line) => line.toLowerCase().includes('norēķinu rekvizīti') || line.toLowerCase().includes('n o r ē ķ i n u'))
+  const tableStart = lines.findIndex((line) => {
+    const normalized = normalizeForMatch(line)
+    return normalized.includes('nosaukums') && normalized.includes('daudzums') && normalized.includes('cena')
+  })
+
+  const totalIndex = lines.findIndex((line) => normalizeForMatch(line).startsWith('summa apmaksai'))
+  const requisitesIndex = lines.findIndex((line) => normalizeForMatch(line).includes('norekinu rekviziti'))
 
   const noteCandidates = lines
     .slice(
-      lines.findIndex((line) => line.toLowerCase().startsWith('adrese')) + 1,
+      lines.findIndex((line) => normalizeForMatch(line).startsWith('adrese')) + 1,
       tableStart === -1 ? undefined : tableStart,
     )
     .map(normalizeLine)
-    .filter((line) => line && !line.toLowerCase().startsWith('konta numurs') && !line.toLowerCase().startsWith('līguma numurs'))
+    .filter((line) => {
+      const normalized = normalizeForMatch(line)
+      return (
+        Boolean(line) &&
+        !normalized.startsWith('klients') &&
+        !normalized.startsWith('registracijas numurs') &&
+        !normalized.startsWith('adrese') &&
+        !normalized.startsWith('konta numurs') &&
+        !normalized.startsWith('liguma numurs')
+      )
+    })
 
   const items = (tableStart === -1 || totalIndex === -1 ? [] : lines.slice(tableStart + 1, totalIndex))
     .map(parseItemLine)
@@ -170,7 +197,7 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
   const totalMatch = totalLine.match(/(\d+(?:[.,]\d+)?)(?!.*\d)/)
   const total = totalMatch ? parseDecimal(totalMatch[1]) : 0
 
-  const vatLine = lines.find((line) => /^PVN/i.test(line))
+  const vatLine = lines.find((line) => normalizeForMatch(line).startsWith('pvn'))
   const vatRateMatch = vatLine?.match(/\((\d+(?:[.,]\d+)?)%\)/)
   const vatRate = vatRateMatch ? parseDecimal(vatRateMatch[1]) : 0
 
