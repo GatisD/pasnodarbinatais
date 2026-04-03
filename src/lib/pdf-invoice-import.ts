@@ -32,7 +32,7 @@ type TextBit = {
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 function normalizeLine(value: string) {
-  return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim()
+  return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').replace(/\0/g, ' ').trim()
 }
 
 function normalizeForMatch(value: string) {
@@ -42,68 +42,48 @@ function normalizeForMatch(value: string) {
     .toLowerCase()
 }
 
-function isNumericToken(value: string) {
-  return /^-?\d+(?:[.,]\d+)?$/.test(value)
-}
-
 function parseDecimal(value: string) {
-  return Number(value.replace(/\s/g, '').replace(',', '.'))
+  const cleaned = value.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function toIsoDate(value: string) {
-  const dotted = value.match(/(\d{2})\.(\d{2})\.(\d{4})/)
+  const normalized = normalizeLine(value)
+  const dotted = normalized.match(/(\d{2})\.(\d{2})\.(\d{4})/)
   if (dotted) return `${dotted[3]}-${dotted[2]}-${dotted[1]}`
 
-  const slashed = value.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+  const slashed = normalized.match(/(\d{2})\/(\d{2})\/(\d{4})/)
   if (slashed) return `${slashed[3]}-${slashed[2]}-${slashed[1]}`
 
   return ''
 }
 
-function getLabelValue(lines: string[], label: string) {
-  const normalizedLabel = normalizeForMatch(label)
-  const index = lines.findIndex((line) => normalizeForMatch(line).startsWith(normalizedLabel))
-  if (index === -1) return ''
+function collapseBrokenLetterRows(lines: string[]) {
+  const merged: string[] = []
 
-  const line = normalizeLine(lines[index])
-  const labelWordCount = normalizeLine(label).split(' ').length
-  const suffix = normalizeLine(line.split(' ').slice(labelWordCount).join(' '))
-  if (suffix) return suffix
+  for (const current of lines) {
+    const line = normalizeLine(current)
+    if (!line) continue
 
-  return normalizeLine(lines[index + 1] ?? '')
-}
+    const previous = merged.at(-1)
+    const shouldMerge =
+      previous &&
+      previous.length <= 3 &&
+      line.length <= 20 &&
+      /[\p{L}]/u.test(previous) &&
+      /[\p{L}]/u.test(line) &&
+      !/[:]/.test(previous)
 
-function parseItemLine(line: string) {
-  const tokens = normalizeLine(line).split(' ')
-  if (tokens.length < 5) return null
-  if (!/^\d+$/.test(tokens[0])) return null
+    if (shouldMerge) {
+      merged[merged.length - 1] = `${previous}${line}`
+      continue
+    }
 
-  const numericPositions = tokens
-    .map((token, index) => ({ token, index }))
-    .filter(({ token, index }) => index > 0 && isNumericToken(token))
-
-  if (numericPositions.length < 3) return null
-
-  const quantityEntry = numericPositions[0]
-  const unitPriceEntry = numericPositions[numericPositions.length - 2]
-  const totalEntry = numericPositions[numericPositions.length - 1]
-
-  const description = tokens.slice(1, quantityEntry.index).join(' ').trim()
-  if (!description) return null
-
-  let unit = 'gab.'
-  const maybeUnit = tokens[quantityEntry.index + 1]
-  if (maybeUnit && !isNumericToken(maybeUnit)) {
-    unit = maybeUnit
+    merged.push(line)
   }
 
-  return {
-    description,
-    quantity: parseDecimal(quantityEntry.token),
-    total: parseDecimal(totalEntry.token),
-    unit,
-    unitPrice: parseDecimal(unitPriceEntry.token),
-  }
+  return merged
 }
 
 function extractOrderedLines(pageItems: TextBit[]) {
@@ -115,28 +95,98 @@ function extractOrderedLines(pageItems: TextBit[]) {
     }))
     .filter((item) => normalizeLine(item.str))
     .sort((a, b) => {
-      if (Math.abs(b.y - a.y) > 2) return b.y - a.y
+      if (Math.abs(b.y - a.y) > 6) return b.y - a.y
       return a.x - b.x
     })
 
   const rows: Array<{ bits: typeof sorted; y: number }> = []
   for (const item of sorted) {
-    const row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2)
+    const row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 6)
     if (row) row.bits.push(item)
     else rows.push({ y: item.y, bits: [item] })
   }
 
-  return rows
-    .sort((a, b) => b.y - a.y)
-    .map((row) =>
-      normalizeLine(
-        row.bits
-          .sort((a, b) => a.x - b.x)
-          .map((bit) => bit.str)
-          .join(' '),
-      ),
-    )
-    .filter(Boolean)
+  return collapseBrokenLetterRows(
+    rows
+      .sort((a, b) => b.y - a.y)
+      .map((row) =>
+        normalizeLine(
+          row.bits
+            .sort((a, b) => a.x - b.x)
+            .map((bit) => bit.str)
+            .join(' '),
+        ),
+      )
+      .filter(Boolean),
+  )
+}
+
+function findLineValue(lines: string[], labels: string[]) {
+  for (const label of labels) {
+    const normalizedLabel = normalizeForMatch(label)
+    for (let index = 0; index < lines.length; index += 1) {
+      const normalizedLine = normalizeForMatch(lines[index])
+      if (!normalizedLine.startsWith(normalizedLabel)) continue
+
+      const separatorIndex = lines[index].indexOf(':')
+      if (separatorIndex !== -1) {
+        const inlineValue = normalizeLine(lines[index].slice(separatorIndex + 1))
+        if (inlineValue) return inlineValue
+      }
+
+      const labelWordCount = normalizeLine(label).split(' ').length
+      const suffix = normalizeLine(lines[index].split(' ').slice(labelWordCount).join(' '))
+      if (suffix) return suffix
+
+      return normalizeLine(lines[index + 1] ?? '')
+    }
+  }
+
+  return ''
+}
+
+function parseItemLine(line: string) {
+  const tokens = normalizeLine(line).split(' ')
+  if (tokens.length < 5) return null
+  if (!/^\d+$/.test(tokens[0])) return null
+
+  const numericEntries = tokens
+    .map((token, index) => ({ index, token }))
+    .filter(({ token, index }) => index > 0 && /^-?\d+(?:[.,]\d+)?$/.test(token))
+
+  if (numericEntries.length < 3) return null
+
+  const quantityEntry = numericEntries[0]
+  const unitPriceEntry = numericEntries[numericEntries.length - 2]
+  const totalEntry = numericEntries[numericEntries.length - 1]
+
+  const description = normalizeLine(tokens.slice(1, quantityEntry.index).join(' '))
+  if (!description) return null
+
+  let unit = 'gab.'
+  const maybeUnit = tokens[quantityEntry.index + 1]
+  if (maybeUnit && !/^-?\d+(?:[.,]\d+)?$/.test(maybeUnit)) unit = maybeUnit
+
+  return {
+    description,
+    quantity: parseDecimal(quantityEntry.token),
+    total: parseDecimal(totalEntry.token),
+    unit,
+    unitPrice: parseDecimal(unitPriceEntry.token),
+  }
+}
+
+function parseItems(lines: string[]) {
+  const tableStart = lines.findIndex((line) => {
+    const normalized = normalizeForMatch(line)
+    return normalized.includes('nosaukums') && normalized.includes('daudzums') && normalized.includes('cena')
+  })
+  const totalIndex = lines.findIndex((line) => normalizeForMatch(line).startsWith('summa apmaksai'))
+  if (tableStart === -1 || totalIndex === -1) return []
+
+  const rows = lines.slice(tableStart + 1, totalIndex)
+  const parsed = rows.map(parseItemLine).filter((item): item is ParsedInvoiceItem => Boolean(item))
+  return parsed
 }
 
 export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
@@ -151,49 +201,47 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
   }
 
   const sourceInvoiceNumber =
-    getLabelValue(lines, 'Rēķina numurs') ||
+    findLineValue(lines, ['Rēķina numurs']) ||
     lines.find((line) => /\bRēķins\.Nr\./i.test(line)) ||
     null
 
-  const issueDate = toIsoDate(getLabelValue(lines, 'Rēķina datums'))
-  const dueDate = toIsoDate(getLabelValue(lines, 'Maksājuma termiņš'))
+  const issueDate = toIsoDate(findLineValue(lines, ['Rēķina datums', 'Datums']))
+  const dueDate = toIsoDate(findLineValue(lines, ['Maksājuma termiņš', 'Samaksas termiņš']))
 
-  const clientName = getLabelValue(lines, 'Klients')
-  const clientRegNumber = getLabelValue(lines, 'Reģistrācijas numurs') || null
-  const clientAddress = getLabelValue(lines, 'Adrese') || null
-  const clientEmail = getLabelValue(lines, 'E-pasts') || null
-
-  const tableStart = lines.findIndex((line) => {
-    const normalized = normalizeForMatch(line)
-    return normalized.includes('nosaukums') && normalized.includes('daudzums') && normalized.includes('cena')
-  })
-
-  const totalIndex = lines.findIndex((line) => normalizeForMatch(line).startsWith('summa apmaksai'))
-  const requisitesIndex = lines.findIndex((line) => normalizeForMatch(line).includes('norekinu rekviziti'))
+  const clientName = findLineValue(lines, ['Klients'])
+  const clientRegNumber = findLineValue(lines, ['Reģistrācijas numurs']) || null
+  const clientAddress = findLineValue(lines, ['Adrese']) || null
+  const clientEmail = findLineValue(lines, ['E-pasts']) || null
 
   const noteCandidates = lines
-    .slice(
-      lines.findIndex((line) => normalizeForMatch(line).startsWith('adrese')) + 1,
-      tableStart === -1 ? undefined : tableStart,
-    )
-    .map(normalizeLine)
     .filter((line) => {
       const normalized = normalizeForMatch(line)
       return (
-        Boolean(line) &&
+        !normalized.startsWith('rekina numurs') &&
+        !normalized.startsWith('rekina datums') &&
+        !normalized.startsWith('maksajuma termins') &&
+        !normalized.startsWith('liguma numurs') &&
         !normalized.startsWith('klients') &&
         !normalized.startsWith('registracijas numurs') &&
         !normalized.startsWith('adrese') &&
         !normalized.startsWith('konta numurs') &&
-        !normalized.startsWith('liguma numurs')
+        !normalized.startsWith('summa apmaksai') &&
+        !normalized.startsWith('summa vardiem') &&
+        !normalized.includes('norekinu rekviziti') &&
+        !normalized.includes('dokuments ir sagatavots elektroniski') &&
+        !normalized.includes('rekins sagatavots') &&
+        !normalized.includes('piegadatajs') &&
+        !normalized.includes('bankas nosaukums') &&
+        !normalized.includes('nosaukums') &&
+        !normalized.includes('daudzums') &&
+        !normalized.includes('summa, euro')
       )
     })
+    .filter((line) => /[\p{L}]/u.test(line))
 
-  const items = (tableStart === -1 || totalIndex === -1 ? [] : lines.slice(tableStart + 1, totalIndex))
-    .map(parseItemLine)
-    .filter((item): item is ParsedInvoiceItem => Boolean(item))
+  const items = parseItems(lines)
 
-  const totalLine = totalIndex === -1 ? '' : lines[totalIndex]
+  const totalLine = lines.find((line) => normalizeForMatch(line).startsWith('summa apmaksai')) ?? ''
   const totalMatch = totalLine.match(/(\d+(?:[.,]\d+)?)(?!.*\d)/)
   const total = totalMatch ? parseDecimal(totalMatch[1]) : 0
 
@@ -207,7 +255,7 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
       : total > 0
         ? [
             {
-              description: noteCandidates[0] || 'Importēts pakalpojums',
+              description: noteCandidates.find((line) => line.length > 5) || 'Importēts pakalpojums',
               quantity: 1,
               total,
               unit: 'gab.',
@@ -221,7 +269,8 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
   }
 
   const notes = noteCandidates
-    .slice(0, requisitesIndex === -1 ? noteCandidates.length : undefined)
+    .filter((line) => !parsedItems.some((item) => line.includes(item.description)))
+    .slice(0, 4)
     .join('\n')
     .trim()
 
