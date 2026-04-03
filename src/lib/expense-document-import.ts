@@ -169,6 +169,7 @@ async function extractImageText(file: File) {
 
 function inferCategory(vendor: string, description: string) {
   const haystack = `${vendor} ${description}`.toLowerCase()
+  if (/(tele2|bite|lmt|tet)/.test(haystack)) return 'sakari'
   if (/(adobe|acrobat|creative cloud|anthropic|claude|openai|chatgpt|cursor)/.test(haystack)) return 'programmatura'
   if (/(hostnet|hostinger|hosting|domain|domēn|server|vercel|cloudflare)/.test(haystack)) return 'majaslapa'
   if (/(circle k|neste|virši|virsi|degviela|diesel|benz|fuel)/.test(haystack)) return 'degviela'
@@ -289,6 +290,56 @@ function parseAnthropicReceiptPdf(text: string): ParsedExpenseDocument | null {
     source: 'pdf',
     vatAmount,
     vendor: 'Anthropic, PBC',
+  }
+}
+
+function parseTele2Pdf(text: string): ParsedExpenseDocument | null {
+  if (!/(Tele2|mans\.tele2\.lv|Rēķins ir sagatavots un autorizēts elektroniski)/i.test(text)) return null
+
+  const documentNumber =
+    firstMatch(text, [
+      /Rēķina Nr\.?\s*([0-9-]+)/i,
+      /Klienta Nr\.\s*[0-9]+\s*Rēķina Nr\.\s*([0-9-]+)/i,
+    ]) || null
+
+  const date = toIsoDate(
+    firstMatch(text, [
+      /Datums\s+(\d{2}\.\d{2}\.\d{4})/i,
+      /Rēķina Nr\.\s*[0-9-]+\s*Datums\s+(\d{2}\.\d{2}\.\d{4})/i,
+    ]),
+  )
+
+  const period =
+    firstMatch(text, [/Periods\s+(\d{2}\.\d{2}\.\d{4}\s*-\s*\d{2}\.\d{2}\.\d{4})/i]) || ''
+
+  const amount = parseDecimal(
+    firstMatch(text, [
+      /Kopā par periodu\s+([0-9]+(?:[.,][0-9]{2})?)/i,
+      /Summa apmaksai\s+([0-9]+(?:[.,][0-9]{2})?)/i,
+    ]),
+  )
+
+  const vatAmount = parseDecimal(
+    firstMatch(text, [
+      /PVN 21%\s+([0-9]+(?:[.,][0-9]{2})?)/i,
+      /PVN\s*[0-9]+%\s+([0-9]+(?:[.,][0-9]{2})?)/i,
+    ]),
+  )
+
+  const description = period ? `Tele2 sakaru pakalpojumi ${period}` : 'Tele2 sakaru pakalpojumi'
+
+  if (!date || amount <= 0) return null
+
+  return {
+    amount,
+    category: 'sakari',
+    date,
+    description,
+    documentNumber,
+    rawText: text,
+    source: 'pdf',
+    vatAmount,
+    vendor: 'SIA Tele2',
   }
 }
 
@@ -418,6 +469,7 @@ export async function parseExpenseDocument(file: File): Promise<ParsedExpenseDoc
     (isPdf ? parseAdobePdf(text) : null) ??
     (isPdf ? parseHostnetPdf(text) : null) ??
     (isPdf ? parseAnthropicReceiptPdf(text) : null) ??
+    (isPdf ? parseTele2Pdf(text) : null) ??
     (isPdf ? parseGenericPdf(text) : null) ??
     (!isPdf ? parseReceiptImage(text) : null)
 
