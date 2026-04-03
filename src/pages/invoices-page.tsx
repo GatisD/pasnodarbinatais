@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer'
-import { ChevronDown, Copy, Download, Eye, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
 import { InvoicePdfDocument, type InvoicePdfData } from '@/features/invoices/invoice-pdf'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { parseNumber, roundMoney } from '@/lib/numbers'
+import { parseInvoicePdf } from '@/lib/pdf-invoice-import'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,6 @@ type HistoricalInvoiceSeed = {
   unit: string
   unit_price: number
 }
-
 const emptyItem = (): Item => ({ description: '', quantity: '1', unit: 'gab.', unit_price: '0' })
 const labels: Record<Status, string> = { izrakstits: 'Izrakstīts', apmaksats: 'Apmaksāts', kavejas: 'Kavējas', atcelts: 'Atcelts' }
 const pill: Record<Status, string> = {
@@ -101,11 +101,15 @@ export function InvoicesPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
   const [importingHistory, setImportingHistory] = useState(false)
+  const [importingPdf, setImportingPdf] = useState(false)
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
+  const [sourceInvoiceNumber, setSourceInvoiceNumber] = useState<string | null>(null)
   const [loadingEditorId, setLoadingEditorId] = useState<string | null>(null)
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7))
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all')
   const [search, setSearch] = useState('')
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  void importingHistory
 
   useEffect(() => { void Promise.all([loadClients(), loadInvoices(), loadProfile()]) }, [user?.id])
 
@@ -119,7 +123,9 @@ export function InvoicesPage() {
   const vatRateValue = parseNumber(vatRate)
   const vatAmount = roundMoney(subtotal * (vatRateValue / 100))
   const total = roundMoney(subtotal + vatAmount)
-  const draftNumber = editingInvoiceId ? invoices.find((invoice) => invoice.id === editingInvoiceId)?.invoice_number ?? `R-${new Date(issueDate).getFullYear()}-001` : `R-${new Date(issueDate).getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`
+  const draftNumber = editingInvoiceId
+    ? invoices.find((invoice) => invoice.id === editingInvoiceId)?.invoice_number ?? `R-${new Date(issueDate).getFullYear()}-001`
+    : sourceInvoiceNumber ?? `R-${new Date(issueDate).getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`
 
   const draftPdf: InvoicePdfData = {
     client: { address: selectedClient?.address, bankIban: selectedClient?.bank_iban, email: selectedClient?.email, name: selectedClient?.name ?? 'Klients nav izvēlēts', regNumber: selectedClient?.reg_number },
@@ -179,6 +185,7 @@ export function InvoicesPage() {
 
   function resetComposer() {
     setEditingInvoiceId(null)
+    setSourceInvoiceNumber(null)
     setClientId('')
     setIssueDate(new Date().toISOString().slice(0, 10))
     setDueDate(new Date().toISOString().slice(0, 10))
@@ -209,6 +216,7 @@ export function InvoicesPage() {
     const itemRows = await loadInvoiceItems(invoice.id)
     if (!itemRows.length) return void setLoadingEditorId(null)
     setEditingInvoiceId(duplicate ? null : invoice.id)
+    setSourceInvoiceNumber(duplicate ? null : invoice.invoice_number ?? null)
     setClientId(invoice.client?.id ?? '')
     setIssueDate(duplicate ? new Date().toISOString().slice(0, 10) : invoice.issue_date)
     setDueDate(duplicate ? new Date().toISOString().slice(0, 10) : invoice.due_date)
@@ -253,7 +261,7 @@ export function InvoicesPage() {
       return void loadInvoices()
     }
 
-    const { data: invoice, error } = await supabase.from('invoices').insert({ client_id: clientId, due_date: dueDate, issue_date: issueDate, notes: notes || null, status: 'izrakstits', subtotal, total, user_id: user.id, vat_amount: vatAmount, vat_rate: vatRateValue / 100 }).select('id').single()
+    const { data: invoice, error } = await supabase.from('invoices').insert({ client_id: clientId, due_date: dueDate, invoice_number: sourceInvoiceNumber, issue_date: issueDate, notes: notes || null, status: 'izrakstits', subtotal, total, user_id: user.id, vat_amount: vatAmount, vat_rate: vatRateValue / 100 }).select('id').single()
     if (error || !invoice) {
       setFeedback(getFriendlySupabaseError(error?.message ?? 'Neizdevās saglabāt rēķinu.'))
       return void setIsSaving(false)
@@ -307,6 +315,99 @@ export function InvoicesPage() {
     setInvoices((current) => current.filter((row) => row.id !== invoice.id))
     setFeedback('Rēķins dzēsts.')
     setDeletingInvoiceId(null)
+  }
+
+  async function findOrCreateImportedClient(seed: Pick<Client, 'address' | 'email' | 'name' | 'reg_number'>) {
+    if (!supabase || !user) return null
+
+    let query = supabase
+      .from('clients')
+      .select('id, name, reg_number, address, email, bank_iban')
+      .eq('user_id', user.id)
+
+    if (seed.reg_number) query = query.eq('reg_number', seed.reg_number)
+    else query = query.eq('name', seed.name)
+
+    const { data: existing, error: existingError } = await query.maybeSingle()
+    if (existingError) throw new Error(getFriendlySupabaseError(existingError.message))
+    if (existing) return existing as Client
+
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        address: seed.address,
+        email: seed.email,
+        name: seed.name,
+        reg_number: seed.reg_number,
+        user_id: user.id,
+      })
+      .select('id, name, reg_number, address, email, bank_iban')
+      .single()
+
+    if (error) throw new Error(getFriendlySupabaseError(error.message))
+    return data as Client
+  }
+
+  async function handleImportPdf(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!supabase || !user) return
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setImportingPdf(true)
+    setFeedback(null)
+
+    try {
+      const parsed = await parseInvoicePdf(file)
+
+      if (parsed.sourceInvoiceNumber) {
+        const { data: existingInvoice, error: checkError } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('invoice_number', parsed.sourceInvoiceNumber)
+          .maybeSingle()
+
+        if (checkError) throw new Error(getFriendlySupabaseError(checkError.message))
+        if (existingInvoice) throw new Error(`Rēķins ${parsed.sourceInvoiceNumber} sistēmā jau eksistē.`)
+      }
+
+      const client = await findOrCreateImportedClient({
+        address: parsed.client.address,
+        email: parsed.client.email,
+        name: parsed.client.name,
+        reg_number: parsed.client.regNumber,
+      })
+
+      await loadClients()
+
+      setEditingInvoiceId(null)
+      setSourceInvoiceNumber(parsed.sourceInvoiceNumber)
+      setClientId(client?.id ?? '')
+      setIssueDate(parsed.issueDate)
+      setDueDate(parsed.dueDate)
+      setVatRate(String(parsed.vatRate))
+      setNotes(parsed.notes)
+      setItems(
+        parsed.items.map((item) => ({
+          description: item.description,
+          quantity: String(item.quantity),
+          unit: item.unit,
+          unit_price: String(item.unitPrice),
+        })),
+      )
+      setShowComposer(true)
+      setShowPreview(true)
+      setFeedback(
+        parsed.sourceInvoiceNumber
+          ? `PDF nolasīts. Rēķins ${parsed.sourceInvoiceNumber} aizpildīts melnrakstā, pārbaudi un saglabā.`
+          : 'PDF nolasīts. Melnraksts aizpildīts, pārbaudi un saglabā.',
+      )
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Neizdevās nolasīt PDF rēķinu.')
+    } finally {
+      event.target.value = ''
+      setImportingPdf(false)
+    }
   }
 
   async function findOrCreateHistoricalClient(seed: HistoricalInvoiceSeed) {
@@ -437,6 +538,7 @@ export function InvoicesPage() {
       setDownloadingId(null)
     }
   }
+  void handleImportHistoricalInvoices
 
   return (
     <div className="grid gap-6">
@@ -451,8 +553,9 @@ export function InvoicesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3 xl:justify-end">
             <button type="button" onClick={clearFilters} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium">Notīrīt filtrus</button>
-            <button type="button" onClick={() => void handleImportHistoricalInvoices()} disabled={importingHistory} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium disabled:opacity-60">
-              {importingHistory ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{importingHistory ? 'Importējam PDF rēķinus...' : 'Importēt 5068/5069'}
+            <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" onChange={handleImportPdf} className="hidden" />
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importingPdf} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium disabled:opacity-60">
+              {importingPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}{importingPdf ? 'Importējam PDF...' : 'Importēt PDF'}
             </button>
             <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">
               {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Izveidot rēķinu'}
