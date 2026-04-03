@@ -32,7 +32,7 @@ type TextBit = {
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 function normalizeLine(value: string) {
-  return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').replace(/\0/g, ' ').trim()
+  return value.replace(/\u00a0/g, ' ').replace(/\0/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function normalizeForMatch(value: string) {
@@ -43,18 +43,43 @@ function normalizeForMatch(value: string) {
 }
 
 function parseDecimal(value: string) {
-  const cleaned = value.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')
+  const cleaned = value
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.')
   const parsed = Number(cleaned)
   return Number.isFinite(parsed) ? parsed : 0
 }
 
 function toIsoDate(value: string) {
   const normalized = normalizeLine(value)
+
   const dotted = normalized.match(/(\d{2})\.(\d{2})\.(\d{4})/)
   if (dotted) return `${dotted[3]}-${dotted[2]}-${dotted[1]}`
 
   const slashed = normalized.match(/(\d{2})\/(\d{2})\/(\d{4})/)
   if (slashed) return `${slashed[3]}-${slashed[2]}-${slashed[1]}`
+
+  const english = normalized.match(
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})\b/i,
+  )
+  if (english) {
+    const months = {
+      january: '01',
+      february: '02',
+      march: '03',
+      april: '04',
+      may: '05',
+      june: '06',
+      july: '07',
+      august: '08',
+      september: '09',
+      october: '10',
+      november: '11',
+      december: '12',
+    } as const
+    return `${english[3]}-${months[english[1].toLowerCase() as keyof typeof months]}-${String(Number(english[2])).padStart(2, '0')}`
+  }
 
   return ''
 }
@@ -67,16 +92,21 @@ function collapseBrokenLetterRows(lines: string[]) {
     if (!line) continue
 
     const previous = merged.at(-1)
+    const previousNormalized = previous ? normalizeForMatch(previous) : ''
+    const currentNormalized = normalizeForMatch(line)
+
     const shouldMerge =
       previous &&
-      previous.length <= 3 &&
-      line.length <= 20 &&
+      previous.length <= 16 &&
+      line.length <= 48 &&
       /[\p{L}]/u.test(previous) &&
       /[\p{L}]/u.test(line) &&
-      !/[:]/.test(previous)
+      !previous.includes(':') &&
+      !/^(summa|klients|adrese|e-pasts|epasts|rekina|invoice|bill to|date|pvn|vat|subtotal|total)/.test(previousNormalized) &&
+      !/^(summa|klients|adrese|e-pasts|epasts|rekina|invoice|bill to|date|pvn|vat|subtotal|total)/.test(currentNormalized)
 
     if (shouldMerge) {
-      merged[merged.length - 1] = `${previous}${line}`
+      merged[merged.length - 1] = normalizeLine(`${previous} ${line}`)
       continue
     }
 
@@ -124,24 +154,34 @@ function extractOrderedLines(pageItems: TextBit[]) {
 function findLineValue(lines: string[], labels: string[]) {
   for (const label of labels) {
     const normalizedLabel = normalizeForMatch(label)
-    for (let index = 0; index < lines.length; index += 1) {
-      const normalizedLine = normalizeForMatch(lines[index])
-      if (!normalizedLine.startsWith(normalizedLabel)) continue
 
-      const separatorIndex = lines[index].indexOf(':')
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index]
+      const normalizedLine = normalizeForMatch(line)
+      if (!normalizedLine.includes(normalizedLabel)) continue
+
+      const separatorIndex = line.indexOf(':')
       if (separatorIndex !== -1) {
-        const inlineValue = normalizeLine(lines[index].slice(separatorIndex + 1))
+        const inlineValue = normalizeLine(line.slice(separatorIndex + 1))
         if (inlineValue) return inlineValue
       }
 
-      const labelWordCount = normalizeLine(label).split(' ').length
-      const suffix = normalizeLine(lines[index].split(' ').slice(labelWordCount).join(' '))
+      const labelIndex = normalizedLine.indexOf(normalizedLabel)
+      const suffix = normalizeLine(line.slice(labelIndex + label.length))
       if (suffix) return suffix
 
-      return normalizeLine(lines[index + 1] ?? '')
+      const nextLine = normalizeLine(lines[index + 1] ?? '')
+      if (nextLine) return nextLine
     }
   }
 
+  return ''
+}
+
+function firstMatchingLine(lines: string[], patterns: RegExp[]) {
+  for (const line of lines) {
+    if (patterns.some((pattern) => pattern.test(line))) return normalizeLine(line)
+  }
   return ''
 }
 
@@ -179,14 +219,164 @@ function parseItemLine(line: string) {
 function parseItems(lines: string[]) {
   const tableStart = lines.findIndex((line) => {
     const normalized = normalizeForMatch(line)
-    return normalized.includes('nosaukums') && normalized.includes('daudzums') && normalized.includes('cena')
+    return (
+      (normalized.includes('nosaukums') || normalized.includes('description')) &&
+      (normalized.includes('daudzums') || normalized.includes('qty') || normalized.includes('quantity')) &&
+      (normalized.includes('cena') || normalized.includes('unit price') || normalized.includes('price'))
+    )
   })
-  const totalIndex = lines.findIndex((line) => normalizeForMatch(line).startsWith('summa apmaksai'))
-  if (tableStart === -1 || totalIndex === -1) return []
+
+  const totalIndex = lines.findIndex((line) => {
+    const normalized = normalizeForMatch(line)
+    return (
+      normalized.startsWith('summa apmaksai') ||
+      normalized.startsWith('amount due') ||
+      normalized.startsWith('amount paid') ||
+      normalized.startsWith('total')
+    )
+  })
+
+  if (tableStart === -1 || totalIndex === -1 || totalIndex <= tableStart) return []
 
   const rows = lines.slice(tableStart + 1, totalIndex)
-  const parsed = rows.map(parseItemLine).filter((item): item is ParsedInvoiceItem => Boolean(item))
-  return parsed
+  return rows.map(parseItemLine).filter((item): item is ParsedInvoiceItem => Boolean(item))
+}
+
+function inferItemDescription(lines: string[]) {
+  const strongCandidate = lines.find((line) => {
+    const normalized = normalizeForMatch(line)
+    return (
+      line.length > 6 &&
+      !normalized.startsWith('rekina numurs') &&
+      !normalized.startsWith('invoice number') &&
+      !normalized.startsWith('receipt number') &&
+      !normalized.startsWith('rekina datums') &&
+      !normalized.startsWith('date of issue') &&
+      !normalized.startsWith('invoice date') &&
+      !normalized.startsWith('maksajuma termins') &&
+      !normalized.startsWith('date due') &&
+      !normalized.startsWith('bill to') &&
+      !normalized.startsWith('klients') &&
+      !normalized.startsWith('provided to') &&
+      !normalized.startsWith('summa apmaksai') &&
+      !normalized.startsWith('amount due') &&
+      !normalized.startsWith('amount paid') &&
+      !normalized.startsWith('subtotal') &&
+      !normalized.startsWith('total excluding tax') &&
+      !normalized.startsWith('vat') &&
+      !normalized.startsWith('norekinu rekviziti') &&
+      !normalized.startsWith('dokuments') &&
+      !normalized.startsWith('powered by') &&
+      !normalized.startsWith('description') &&
+      !normalized.startsWith('nosaukums') &&
+      !normalized.startsWith('transaction') &&
+      !normalized.startsWith('start date')
+    )
+  })
+
+  return strongCandidate || 'Importēts pakalpojums'
+}
+
+function parseTotal(lines: string[]) {
+  const line =
+    firstMatchingLine(lines, [
+      /^Summa apmaksai/i,
+      /^Amount due/i,
+      /^Amount paid/i,
+      /^Total\s+/i,
+      /^Total$/i,
+    ]) || ''
+
+  const match = line.match(/(\d+(?:[.,]\d+)?)(?!.*\d)/)
+  return match ? parseDecimal(match[1]) : 0
+}
+
+function parseVatRate(lines: string[]) {
+  const line = firstMatchingLine(lines, [/^PVN/i, /^VAT/i, /tax/i])
+  const match = line.match(/(\d+(?:[.,]\d+)?)\s*%/)
+  return match ? parseDecimal(match[1]) : 0
+}
+
+function parseInvoiceNumber(lines: string[]) {
+  const explicit = findLineValue(lines, ['Rēķina numurs', 'Invoice number', 'Invoice #', 'Receipt number'])
+  if (explicit) return explicit
+
+  return (
+    firstMatchingLine(lines, [
+      /\bRēķins\.Nr\.[A-Za-z0-9-]+/i,
+      /\bPR\d{4}-\d+/i,
+      /\b[A-Z0-9]{4,}-\d{4,}(?:-\d+)?\b/,
+    ]) || null
+  )
+}
+
+function parseIssueDate(lines: string[]) {
+  return (
+    toIsoDate(findLineValue(lines, ['Rēķina datums', 'Izrakstīšanas datums', 'Invoice date', 'Date of issue', 'Date paid'])) ||
+    toIsoDate(firstMatchingLine(lines, [/\d{2}\.\d{2}\.\d{4}/, /[A-Za-z]+ \d{1,2}, \d{4}/])) ||
+    ''
+  )
+}
+
+function parseDueDate(lines: string[], issueDate: string) {
+  return (
+    toIsoDate(findLineValue(lines, ['Maksājuma termiņš', 'Apmaksas termiņš', 'Date due', 'Due date'])) ||
+    issueDate
+  )
+}
+
+function parseClient(lines: string[]) {
+  const clientName =
+    findLineValue(lines, ['Klients', 'Pakalpojuma saņēmējs', 'Bill to', 'Provided to']) ||
+    firstMatchingLine(lines, [/^Gatis Daugavietis$/i, /^Laima Daugaviete$/i, /^Rois SIA$/i]) ||
+    ''
+
+  const clientRegNumber =
+    findLineValue(lines, ['Reģistrācijas numurs', 'Pk.']) ||
+    (firstMatchingLine(lines, [/\b\d{6}-\d{5}\b/, /\b\d{11}\b/]) || null)
+
+  const clientAddress = findLineValue(lines, ['Adrese', 'Deklarētā adrese']) || null
+  const clientEmail = findLineValue(lines, ['E-pasts']) || (firstMatchingLine(lines, [/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i]) || null)
+
+  return {
+    address: clientAddress,
+    email: clientEmail,
+    name: clientName,
+    regNumber: clientRegNumber,
+  }
+}
+
+function parseNotes(lines: string[], items: ParsedInvoiceItem[]) {
+  return lines
+    .filter((line) => {
+      const normalized = normalizeForMatch(line)
+      return (
+        line.length > 8 &&
+        !items.some((item) => line.includes(item.description)) &&
+        !normalized.startsWith('rekina numurs') &&
+        !normalized.startsWith('invoice number') &&
+        !normalized.startsWith('receipt number') &&
+        !normalized.startsWith('rekina datums') &&
+        !normalized.startsWith('invoice date') &&
+        !normalized.startsWith('date of issue') &&
+        !normalized.startsWith('maksajuma termins') &&
+        !normalized.startsWith('date due') &&
+        !normalized.startsWith('summa apmaksai') &&
+        !normalized.startsWith('amount due') &&
+        !normalized.startsWith('amount paid') &&
+        !normalized.startsWith('subtotal') &&
+        !normalized.startsWith('vat') &&
+        !normalized.startsWith('klients') &&
+        !normalized.startsWith('bill to') &&
+        !normalized.startsWith('provided to') &&
+        !normalized.startsWith('norekinu rekviziti') &&
+        !normalized.startsWith('dokuments') &&
+        !normalized.startsWith('powered by')
+      )
+    })
+    .slice(0, 4)
+    .join('\n')
+    .trim()
 }
 
 export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
@@ -200,54 +390,13 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
     lines.push(...extractOrderedLines(content.items as TextBit[]))
   }
 
-  const sourceInvoiceNumber =
-    findLineValue(lines, ['Rēķina numurs']) ||
-    lines.find((line) => /\bRēķins\.Nr\./i.test(line)) ||
-    null
-
-  const issueDate = toIsoDate(findLineValue(lines, ['Rēķina datums', 'Datums']))
-  const dueDate = toIsoDate(findLineValue(lines, ['Maksājuma termiņš', 'Samaksas termiņš']))
-
-  const clientName = findLineValue(lines, ['Klients'])
-  const clientRegNumber = findLineValue(lines, ['Reģistrācijas numurs']) || null
-  const clientAddress = findLineValue(lines, ['Adrese']) || null
-  const clientEmail = findLineValue(lines, ['E-pasts']) || null
-
-  const noteCandidates = lines
-    .filter((line) => {
-      const normalized = normalizeForMatch(line)
-      return (
-        !normalized.startsWith('rekina numurs') &&
-        !normalized.startsWith('rekina datums') &&
-        !normalized.startsWith('maksajuma termins') &&
-        !normalized.startsWith('liguma numurs') &&
-        !normalized.startsWith('klients') &&
-        !normalized.startsWith('registracijas numurs') &&
-        !normalized.startsWith('adrese') &&
-        !normalized.startsWith('konta numurs') &&
-        !normalized.startsWith('summa apmaksai') &&
-        !normalized.startsWith('summa vardiem') &&
-        !normalized.includes('norekinu rekviziti') &&
-        !normalized.includes('dokuments ir sagatavots elektroniski') &&
-        !normalized.includes('rekins sagatavots') &&
-        !normalized.includes('piegadatajs') &&
-        !normalized.includes('bankas nosaukums') &&
-        !normalized.includes('nosaukums') &&
-        !normalized.includes('daudzums') &&
-        !normalized.includes('summa, euro')
-      )
-    })
-    .filter((line) => /[\p{L}]/u.test(line))
-
+  const sourceInvoiceNumber = parseInvoiceNumber(lines)
+  const issueDate = parseIssueDate(lines)
+  const dueDate = parseDueDate(lines, issueDate)
+  const client = parseClient(lines)
+  const vatRate = parseVatRate(lines)
   const items = parseItems(lines)
-
-  const totalLine = lines.find((line) => normalizeForMatch(line).startsWith('summa apmaksai')) ?? ''
-  const totalMatch = totalLine.match(/(\d+(?:[.,]\d+)?)(?!.*\d)/)
-  const total = totalMatch ? parseDecimal(totalMatch[1]) : 0
-
-  const vatLine = lines.find((line) => normalizeForMatch(line).startsWith('pvn'))
-  const vatRateMatch = vatLine?.match(/\((\d+(?:[.,]\d+)?)%\)/)
-  const vatRate = vatRateMatch ? parseDecimal(vatRateMatch[1]) : 0
+  const total = parseTotal(lines)
 
   const parsedItems =
     items.length > 0
@@ -255,7 +404,7 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
       : total > 0
         ? [
             {
-              description: noteCandidates.find((line) => line.length > 5) || 'Importēts pakalpojums',
+              description: inferItemDescription(lines),
               quantity: 1,
               total,
               unit: 'gab.',
@@ -264,27 +413,16 @@ export async function parseInvoicePdf(file: File): Promise<ParsedPdfInvoice> {
           ]
         : []
 
-  if (!clientName || !issueDate || !dueDate || !parsedItems.length) {
+  if (!client.name || !issueDate || !dueDate || !parsedItems.length) {
     throw new Error('PDF neizdevās uzticami nolasīt. Pamēģini citu failu vai ievadi rēķinu manuāli.')
   }
 
-  const notes = noteCandidates
-    .filter((line) => !parsedItems.some((item) => line.includes(item.description)))
-    .slice(0, 4)
-    .join('\n')
-    .trim()
-
   return {
-    client: {
-      address: clientAddress,
-      email: clientEmail,
-      name: clientName,
-      regNumber: clientRegNumber,
-    },
+    client,
     dueDate,
     issueDate,
     items: parsedItems,
-    notes,
+    notes: parseNotes(lines, parsedItems),
     sourceInvoiceNumber,
     vatRate,
   }
