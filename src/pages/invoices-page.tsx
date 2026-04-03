@@ -16,6 +16,19 @@ type Status = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
 type Invoice = { id: string; invoice_number: string | null; issue_date: string; due_date: string; status: Status; subtotal: number; vat_amount: number; vat_rate: number; total: number; notes: string | null; client: Client | null }
 type Item = { description: string; quantity: string; unit: string; unit_price: string }
 type InvoiceItemRow = { description: string; quantity: number; unit: string; unit_price: number; total: number }
+type HistoricalInvoiceSeed = {
+  client: Pick<Client, 'address' | 'email' | 'name' | 'reg_number'>
+  due_date: string
+  invoice_number: string
+  issue_date: string
+  line_description: string
+  notes: string
+  paid_at: string
+  quantity: number
+  total: number
+  unit: string
+  unit_price: number
+}
 
 const emptyItem = (): Item => ({ description: '', quantity: '1', unit: 'gab.', unit_price: '0' })
 const labels: Record<Status, string> = { izrakstits: 'Izrakstīts', apmaksats: 'Apmaksāts', kavejas: 'Kavējas', atcelts: 'Atcelts' }
@@ -25,6 +38,44 @@ const pill: Record<Status, string> = {
   kavejas: 'pipboy-status pipboy-status-late',
   atcelts: 'pipboy-status pipboy-status-cancelled',
 }
+const historicalInvoices: HistoricalInvoiceSeed[] = [
+  {
+    client: {
+      address: 'Smiltenes iela 11, Rauna, Raunas pag., Smiltenes nov., LV-4131',
+      email: null,
+      name: 'Tenter Latvija SIA',
+      reg_number: '40203257311',
+    },
+    due_date: '2026-04-06',
+    invoice_number: 'Rēķins.Nr.5068',
+    issue_date: '2026-03-30',
+    line_description: 'Mēneša pakalpojuma maksa',
+    notes: 'Digitālā mārketinga un komunikācijas pakalpojumi 20.03 - 20.04.2026',
+    paid_at: '2026-04-06',
+    quantity: 1,
+    total: 1200,
+    unit: 'mēn.',
+    unit_price: 1200,
+  },
+  {
+    client: {
+      address: 'Smiltenes iela 11, Rauna, Raunas pag., Smiltenes nov., LV-4131',
+      email: null,
+      name: 'Tenter Latvija SIA',
+      reg_number: '40203257311',
+    },
+    due_date: '2026-04-02',
+    invoice_number: 'Rēķins.Nr.5069',
+    issue_date: '2026-03-31',
+    line_description: 'Koorparatīvā dizaina izstrāde - 50% avanss',
+    notes: 'Koorparatīvā dizaina izstrāde',
+    paid_at: '2026-04-02',
+    quantity: 0.5,
+    total: 465,
+    unit: 'gab.',
+    unit_price: 930,
+  },
+]
 
 function toEditableItems(rows: InvoiceItemRow[]): Item[] {
   return rows.map((item) => ({ description: item.description, quantity: String(item.quantity), unit: item.unit, unit_price: String(item.unit_price) }))
@@ -49,6 +100,7 @@ export function InvoicesPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
+  const [importingHistory, setImportingHistory] = useState(false)
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
   const [loadingEditorId, setLoadingEditorId] = useState<string | null>(null)
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7))
@@ -257,6 +309,100 @@ export function InvoicesPage() {
     setDeletingInvoiceId(null)
   }
 
+  async function findOrCreateHistoricalClient(seed: HistoricalInvoiceSeed) {
+    if (!supabase || !user) return null
+
+    const { data: existing, error: existingError } = await supabase
+      .from('clients')
+      .select('id, name, reg_number, address, email, bank_iban')
+      .eq('user_id', user.id)
+      .eq('name', seed.client.name)
+      .maybeSingle()
+
+    if (existingError) throw new Error(getFriendlySupabaseError(existingError.message))
+    if (existing) return existing as Client
+
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        address: seed.client.address,
+        email: seed.client.email,
+        name: seed.client.name,
+        reg_number: seed.client.reg_number,
+        user_id: user.id,
+      })
+      .select('id, name, reg_number, address, email, bank_iban')
+      .single()
+
+    if (error) throw new Error(getFriendlySupabaseError(error.message))
+    return data as Client
+  }
+
+  async function handleImportHistoricalInvoices() {
+    if (!supabase || !user) return
+    setImportingHistory(true)
+    setFeedback(null)
+
+    try {
+      const imported: string[] = []
+
+      for (const seed of historicalInvoices) {
+        const { data: existingInvoice, error: checkError } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('invoice_number', seed.invoice_number)
+          .maybeSingle()
+
+        if (checkError) throw new Error(getFriendlySupabaseError(checkError.message))
+        if (existingInvoice) continue
+
+        const client = await findOrCreateHistoricalClient(seed)
+        if (!client) continue
+
+        const { data: invoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert({
+            client_id: client.id,
+            due_date: seed.due_date,
+            invoice_number: seed.invoice_number,
+            issue_date: seed.issue_date,
+            notes: seed.notes,
+            paid_at: seed.paid_at,
+            status: 'apmaksats',
+            subtotal: seed.total,
+            total: seed.total,
+            user_id: user.id,
+            vat_amount: 0,
+            vat_rate: 0,
+          })
+          .select('id')
+          .single()
+
+        if (invoiceError || !invoice) throw new Error(getFriendlySupabaseError(invoiceError?.message ?? 'NeizdevÄs importÄ“t PDF rÄ“Ä·inu.'))
+
+        const { error: itemError } = await supabase.from('invoice_items').insert({
+          description: seed.line_description,
+          invoice_id: invoice.id,
+          quantity: seed.quantity,
+          total: seed.total,
+          unit: seed.unit,
+          unit_price: seed.unit_price,
+        })
+
+        if (itemError) throw new Error(getFriendlySupabaseError(itemError.message))
+        imported.push(seed.invoice_number)
+      }
+
+      setFeedback(imported.length ? `ImportÄ“ti rÄ“Ä·ini: ${imported.join(', ')}` : 'Å ie PDF rÄ“Ä·ini jau ir sistÄ“mÄ.')
+      await Promise.all([loadClients(), loadInvoices()])
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'NeizdevÄs importÄ“t PDF rÄ“Ä·inus.')
+    } finally {
+      setImportingHistory(false)
+    }
+  }
+
   async function handleDownload(invoice: Invoice) {
     if (!supabase || !user) return
     setDownloadingId(invoice.id)
@@ -304,7 +450,10 @@ export function InvoicesPage() {
             <p className="pipboy-subtle mt-3 max-w-3xl text-base leading-8">Filtrē rēķinus pēc mēneša, statusa vai klienta un pārvaldi PDF, rediģēšanu un dublēšanu vienuviet.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-            <button type="button" onClick={clearFilters} className="pipboy-button px-5 py-3 font-medium">Notīrīt filtrus</button>
+            <button type="button" onClick={clearFilters} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium">Notīrīt filtrus</button>
+            <button type="button" onClick={() => void handleImportHistoricalInvoices()} disabled={importingHistory} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium disabled:opacity-60">
+              {importingHistory ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{importingHistory ? 'Importējam PDF rēķinus...' : 'Importēt 5068/5069'}
+            </button>
             <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">
               {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Izveidot rēķinu'}
             </button>
@@ -319,9 +468,9 @@ export function InvoicesPage() {
         </div>
 
         <div className="mt-6 grid gap-3 xl:grid-cols-[220px_220px_1fr]">
-          <Field title="Mēnesis"><input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
-          <Field title="Statuss"><div className="relative"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | Status)} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 pr-10 text-white outline-none focus:border-emerald-400/50"><option value="all">Visi statusi</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></Field>
-          <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 py-3 pl-11 pr-4 text-white outline-none focus:border-emerald-400/50" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field>
+          <Field title="Mēnesis"><input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+          <Field title="Statuss"><div className="relative"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | Status)} className="pipboy-input w-full appearance-none px-4 py-3 pr-10"><option value="all">Visi statusi</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></Field>
+          <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-3 pl-11 pr-4" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field>
         </div>
         {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>

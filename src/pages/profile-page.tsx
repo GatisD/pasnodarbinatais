@@ -139,7 +139,7 @@ export function ProfilePage() {
       </div>
 
       {isLoading ? (
-        <div className="mt-6 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-6 text-sm text-[rgba(184,255,184,0.72)]">
+        <div className="pipboy-surface mt-6 px-4 py-6 text-sm text-[rgba(184,255,184,0.72)]">
           Ielādējam profila datus...
         </div>
       ) : (
@@ -198,11 +198,7 @@ export function ProfilePage() {
         </form>
       )}
 
-      {feedback ? (
-        <div className="mt-4 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">
-          {feedback}
-        </div>
-      ) : null}
+      {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
     </section>
   )
 }

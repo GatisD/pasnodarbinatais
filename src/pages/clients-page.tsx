@@ -213,11 +213,7 @@ export function ClientsPage() {
           </div>
         </form>
 
-        {feedback ? (
-          <div className="mt-4 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.76)] px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">
-            {feedback}
-          </div>
-        ) : null}
+        {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>
 
       <section className="pipboy-panel rounded-[28px] p-6">
@@ -238,7 +234,7 @@ export function ClientsPage() {
             Ielādējam klientus...
           </div>
         ) : clients.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.7)] px-5 py-8 text-base leading-8 text-[rgba(184,255,184,0.62)]">
+          <div className="pipboy-empty mt-6 px-5 py-8 text-base leading-8">
             Klientu vēl nav. Pievieno pirmo klientu, lai varam nākamajā solī ķerties klāt
             rēķiniem.
           </div>
@@ -247,7 +243,7 @@ export function ClientsPage() {
             {clients.map((client) => (
               <article
                 key={client.id}
-                className="rounded-3xl border border-[rgba(0,255,70,0.12)] bg-[rgba(5,16,10,0.78)] p-5"
+                className="pipboy-surface rounded-3xl p-5"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-2">

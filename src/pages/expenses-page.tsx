@@ -274,7 +274,7 @@ export function ExpensesPage() {
             <p className="pipboy-subtle mt-3 max-w-3xl text-base leading-8">Filtrē izdevumus pēc mēneša, kategorijas vai piegādātāja un pārvaldi failus no viena skata.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-            <button type="button" onClick={clearFilters} className="pipboy-button px-5 py-3 font-medium">Notīrīt filtrus</button>
+            <button type="button" onClick={clearFilters} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium">Notīrīt filtrus</button>
             <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">{showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Pievienot izdevumu'}</button>
           </div>
         </div>
@@ -287,9 +287,9 @@ export function ExpensesPage() {
         </div>
 
         <div className="mt-6 grid gap-3 xl:grid-cols-[220px_240px_1fr]">
-          <Field title="Mēnesis"><input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white outline-none focus:border-emerald-400/50" /></Field>
-          <Field title="Kategorija"><div className="relative"><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as 'all' | ExpenseCategory)} className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 pr-10 text-white outline-none focus:border-emerald-400/50"><option value="all">Visas kategorijas</option>{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></Field>
-          <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-900/70 py-3 pl-11 pr-4 text-white outline-none focus:border-emerald-400/50" placeholder="Meklē pēc piegādātāja vai apraksta" /></div></Field>
+          <Field title="Mēnesis"><input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="pipboy-input px-4 py-3" /></Field>
+          <Field title="Kategorija"><div className="relative"><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as 'all' | ExpenseCategory)} className="pipboy-input w-full appearance-none px-4 py-3 pr-10"><option value="all">Visas kategorijas</option>{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></Field>
+          <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-3 pl-11 pr-4" placeholder="Meklē pēc piegādātāja vai apraksta" /></div></Field>
         </div>
         {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>

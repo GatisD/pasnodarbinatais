@@ -178,6 +178,17 @@ button {
   color: #fbfffc;
 }
 
+.pipboy-button-ghost {
+  background: rgba(5, 16, 8, 0.52);
+  border-color: rgba(0, 255, 65, 0.14);
+  color: var(--color-pip-green-soft);
+}
+
+.pipboy-button-ghost:hover {
+  background: rgba(9, 22, 9, 0.82);
+  border-color: rgba(57, 255, 20, 0.3);
+}
+
 .pipboy-button-danger {
   border-color: rgba(255, 120, 120, 0.18);
   background: rgba(80, 24, 24, 0.42);
@@ -284,26 +295,28 @@ button {
 }
 
 .pipboy-status-issued {
-  border-color: rgba(255, 204, 51, 0.28);
-  background: rgba(255, 204, 51, 0.12);
+  border-color: rgba(255, 204, 51, 0.45);
+  background: rgba(255, 204, 51, 0.18);
   color: #ffe58a;
+  box-shadow: 0 0 16px rgba(255, 204, 51, 0.1);
 }
 
 .pipboy-status-paid {
-  border-color: rgba(57, 255, 20, 0.3);
-  background: rgba(0, 255, 65, 0.14);
-  color: #b9ff9d;
-  box-shadow: 0 0 14px rgba(57, 255, 20, 0.08);
+  border-color: rgba(57, 255, 20, 0.45);
+  background: rgba(0, 255, 65, 0.22);
+  color: #e8ffe0;
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.14);
 }
 
 .pipboy-status-late {
-  border-color: rgba(255, 107, 107, 0.3);
-  background: rgba(255, 80, 80, 0.14);
-  color: #ffb0b0;
+  border-color: rgba(255, 107, 107, 0.48);
+  background: rgba(255, 80, 80, 0.2);
+  color: #ffd0d0;
+  box-shadow: 0 0 16px rgba(255, 80, 80, 0.12);
 }
 
 .pipboy-status-cancelled {
-  border-color: rgba(184, 255, 184, 0.16);
-  background: rgba(184, 255, 184, 0.06);
-  color: rgba(214, 255, 220, 0.82);
+  border-color: rgba(184, 255, 184, 0.24);
+  background: rgba(184, 255, 184, 0.1);
+  color: rgba(235, 255, 240, 0.88);
 }
