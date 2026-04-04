@@ -7,7 +7,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
+const _pdfMod = require('pdf-parse');
+const pdfParse = (typeof _pdfMod === 'function' ? _pdfMod : _pdfMod.default) as (buffer: Buffer) => Promise<{ text: string }>;
 
 // Ielādē .env no projekta saknes
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
