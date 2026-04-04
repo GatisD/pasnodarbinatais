@@ -607,6 +607,7 @@ export function InvoicesPage() {
   }
   async function handleSendEmail(invoice: Invoice) {
     if (!supabase || !user) return
+    if (!invoice.client?.email) return void setFeedback('Klientam nav e-pasta adreses. Pievieno to klienta kartītē.')
     setSendingEmailId(invoice.id)
     const itemRows = await loadInvoiceItems(invoice.id)
     if (!itemRows.length) return void setSendingEmailId(null)
@@ -625,30 +626,39 @@ export function InvoicesPage() {
     }
     try {
       const blob = await pdf(<InvoicePdfDocument data={pdfData} />).toBlob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${pdfData.invoiceNumber}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+
+      // Convert blob to base64 for email attachment
+      const pdfBase64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
 
       const senderName = profile?.full_name ?? user.email ?? 'Pašnodarbinātais'
-      const subject = `${pdfData.invoiceNumber}`
-      const body = [
+      const fileName = `${pdfData.invoiceNumber}.pdf`
+      const subject = pdfData.invoiceNumber
+      const textBody = [
         'Labdien!',
         '',
         `Paldies par līdzšinējo sadarbību! Pielikumā atradīsiet ${pdfData.invoiceNumber}.`,
         '',
-        'Ja rodas kādi jautājumi, esmu gatavs palīdzēt.',
+        'Ja rodas kādi jautājumi, lūdzu sazinieties ar mani.',
         '',
         `Ar cieņu,\n${senderName}`,
       ].join('\n')
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(invoice.client?.email ?? '')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-      window.open(gmailUrl, '_blank', 'noopener,noreferrer')
-    } catch {
-      setFeedback('Neizdevās sagatavot e-pastu.')
+
+      const { error: fnError } = await supabase.functions.invoke('send-invoice-email', {
+        body: { to: invoice.client.email, subject, textBody, pdfBase64, fileName, replyTo: profile?.email ?? user.email },
+      })
+
+      if (fnError) throw new Error(fnError.message)
+
+      await supabase.from('invoices').update({ sent_at: new Date().toISOString() }).eq('id', invoice.id)
+      setFeedback(`Rēķins ${pdfData.invoiceNumber} nosūtīts uz ${invoice.client.email}.`)
+      await loadInvoices()
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Neizdevās nosūtīt e-pastu.')
     } finally {
       setSendingEmailId(null)
     }
