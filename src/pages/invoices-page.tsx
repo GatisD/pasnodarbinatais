@@ -681,7 +681,7 @@ export function InvoicesPage() {
 }
 
 function Stat(props: { title: string; value: string; compact?: boolean; accent?: boolean }) {
-  return <article className={cn('pipboy-stat p-5', props.compact && 'rounded-3xl')}><p className="pipboy-stat-label text-sm">{props.title}</p><p className={cn('mt-3 text-3xl font-semibold', props.compact && 'text-2xl', props.accent ? 'pipboy-stat-value' : 'text-[#efffeb]')}>{props.value}</p></article>
+  return <article className={cn('pipboy-stat p-5', props.compact && 'rounded-3xl')}><p className="pipboy-stat-label text-sm">{props.title}</p><p className={cn('mt-3 text-3xl font-semibold break-words', props.compact && 'text-2xl', props.accent ? 'pipboy-stat-value' : 'text-[#efffeb]')}>{props.value}</p></article>
 }
 
 function Field(props: { title: string; children: React.ReactNode }) {

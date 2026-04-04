@@ -575,7 +575,7 @@ function Stat(props: { title: string; value: string }) {
   return (
     <article className="pipboy-stat p-5">
       <p className="pipboy-stat-label text-sm">{props.title}</p>
-      <p className="pipboy-stat-value mt-3 text-3xl font-semibold">{props.value}</p>
+      <p className="pipboy-stat-value mt-3 text-3xl font-semibold break-words">{props.value}</p>
     </article>
   )
 }

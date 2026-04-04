@@ -295,6 +295,8 @@ button {
   box-shadow:
     inset 0 0 0 1px rgba(57, 255, 20, 0.03),
     0 0 18px rgba(0, 255, 65, 0.05);
+  overflow: hidden;
+  min-width: 0;
 }
 
 .pipboy-stat-label {
