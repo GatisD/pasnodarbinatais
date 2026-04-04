@@ -5,10 +5,6 @@ import path from 'path';
 import { Telegraf } from 'telegraf';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const _pdfMod = require('pdf-parse');
-const pdfParse = (typeof _pdfMod === 'function' ? _pdfMod : _pdfMod.default) as (buffer: Buffer) => Promise<{ text: string }>;
 
 // Ielādē .env no projekta saknes
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -122,6 +118,7 @@ bot.on('document', async (ctx) => {
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
     // Izvelk tekstu no PDF
+    const { default: pdfParse } = await import('pdf-parse') as { default: (buf: Buffer) => Promise<{ text: string }> };
     const pdfData = await pdfParse(buffer);
     const extractedText = pdfData.text.trim().slice(0, 3000);
 
