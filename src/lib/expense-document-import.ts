@@ -1,6 +1,8 @@
 import { createWorker } from 'tesseract.js'
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { env } from './env'
+import { parseReceiptWithAI } from './receipt-ai-recognition'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -463,6 +465,17 @@ function parseReceiptImage(text: string): ParsedExpenseDocument | null {
 
 export async function parseExpenseDocument(file: File): Promise<ParsedExpenseDocument> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+  // Try AI recognition first if API key is available
+  if (env.anthropicApiKey) {
+    try {
+      const pdfText = isPdf ? await extractPdfText(file) : undefined
+      return await parseReceiptWithAI(file, env.anthropicApiKey, pdfText)
+    } catch {
+      // AI failed — fall through to regex-based parsing below
+    }
+  }
+
   const text = isPdf ? await extractPdfText(file) : await extractImageText(file)
 
   const parsed =
