@@ -298,6 +298,8 @@ const TOOLS = [
         vendor: { type: 'string', description: 'Piegādātājs / uzņēmums' },
         description: { type: 'string', description: 'Apraksts' },
         vat_amount: { type: 'number', description: 'PVN summa EUR (ja zināma)' },
+        receipt_url: { type: 'string', description: 'Čeka/rēķina faila URL (Supabase Storage)' },
+        receipt_path: { type: 'string', description: 'Čeka/rēķina faila ceļš storage (user_id/filename)' },
       },
       required: ['date', 'amount', 'category'],
     },

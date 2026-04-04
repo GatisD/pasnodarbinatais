@@ -422,6 +422,8 @@ export async function addExpense(args: {
   vendor?: string;
   description?: string;
   vat_amount?: number;
+  receipt_url?: string;
+  receipt_path?: string;
 }) {
   requireFields(args as Record<string, unknown>, ['date', 'amount', 'category']);
   const { data, error } = await db()

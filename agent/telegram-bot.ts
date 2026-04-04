@@ -5,6 +5,7 @@ import path from 'path';
 import { Telegraf } from 'telegraf';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import Anthropic from '@anthropic-ai/sdk';
 
 // Ielādē .env no projekta saknes
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,176 +23,271 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
+const anthropic = new Anthropic({
+  apiKey: process.env.VITE_ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY,
+});
+
 const bot = new Telegraf(BOT_TOKEN);
 
-// Palaišanas ziņa
+// ── Supabase Storage augšupielāde ───────────────────────────────────────────
+async function uploadToStorage(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string
+): Promise<{ path: string; signedUrl: string }> {
+  const url = process.env.VITE_SUPABASE_URL!;
+  const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
+  const email = process.env.AGENT_USER_EMAIL!;
+  const password = process.env.AGENT_USER_PASSWORD!;
+
+  // Autentifikācija
+  const authRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': key },
+    body: JSON.stringify({ email, password }),
+  });
+  const authData = await authRes.json() as { access_token: string; user: { id: string } };
+  const { access_token, user } = authData;
+
+  // Augšupielāde
+  const filePath = `${user.id}/${Date.now()}-${fileName}`;
+  const uploadRes = await fetch(`${url}/storage/v1/object/expense-documents/${filePath}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': mimeType,
+      'apikey': key,
+    },
+    body: buffer,
+  });
+  if (!uploadRes.ok) {
+    const txt = await uploadRes.text();
+    throw new Error(`Storage upload kļūda (${uploadRes.status}): ${txt}`);
+  }
+
+  // Iegūst parakstītu URL uz 10 gadiem
+  const signRes = await fetch(`${url}/storage/v1/object/sign/expense-documents/${filePath}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': 'application/json',
+      'apikey': key,
+    },
+    body: JSON.stringify({ expiresIn: 315360000 }),
+  });
+  const signData = await signRes.json() as { signedURL: string };
+  const signedUrl = `${url}/storage/v1${signData.signedURL}`;
+
+  return { path: filePath, signedUrl };
+}
+
+// ── Attēla atpazīšana ar Claude Vision ─────────────────────────────────────
+async function analyzeReceiptImage(
+  imageBuffer: Buffer,
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+): Promise<string> {
+  const base64 = imageBuffer.toString('base64');
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: mimeType, data: base64 },
+        },
+        {
+          type: 'text',
+          text: 'Šis ir čeks vai rēķins. Izvelc šādus datus:\n- Datums (YYYY-MM-DD)\n- Kopsumma EUR\n- PVN summa EUR (ja redzama)\n- Piegādātāja nosaukums\n- Īss apraksts\n- Kategorija (sakari/transports/degviela/biroja_preces/programmatura/majaslapa/reklama/gramatvediba/telpu_noma/komunalie/apdrosinasana/profesionala_izglitiba/aprikojums/bankas_komisija/citi)\n\nAtbildi tikai ar strukturētiem datiem latviešu valodā.',
+        },
+      ],
+    }],
+  });
+  return (response.content[0] as { type: string; text: string }).text;
+}
+
+// ── Claudeam nosūta uzdevumu un atgriež atbildi ─────────────────────────────
+async function callClaude(prompt: string): Promise<string> {
+  const { stdout } = await execAsync(
+    `${CLAUDE_PATH} -p ${JSON.stringify(prompt)} --allowedTools "mcp__gramatvediba__*" --dangerously-skip-permissions 2>/dev/null`,
+    {
+      cwd: PROJECT_DIR,
+      timeout: 120_000,
+      env: { ...process.env, HOME: process.env.HOME },
+    }
+  );
+  return stdout.trim();
+}
+
+// ── Atbildes nosūtīšana (sadalīt ja > 4096) ─────────────────────────────────
+async function sendResponse(ctx: Parameters<typeof bot.on>[1] extends (ctx: infer C) => unknown ? C : never, waitMsgId: number, response: string) {
+  if (!response) {
+    await (ctx as any).telegram.editMessageText(
+      (ctx as any).chat.id, waitMsgId, undefined, '❌ Nav atbildes no Claude.'
+    );
+    return;
+  }
+  if (response.length <= 4096) {
+    await (ctx as any).telegram.editMessageText(
+      (ctx as any).chat.id, waitMsgId, undefined, response
+    );
+  } else {
+    await (ctx as any).telegram.deleteMessage((ctx as any).chat.id, waitMsgId);
+    for (let i = 0; i < response.length; i += 4000) {
+      await (ctx as any).reply(response.slice(i, i + 4000));
+    }
+  }
+}
+
+// ── Drošības pārbaude ────────────────────────────────────────────────────────
+function isAllowed(userId: number): boolean {
+  return !ALLOWED_USER_ID || userId === ALLOWED_USER_ID;
+}
+
+// ── Palaišanas ziņa ──────────────────────────────────────────────────────────
 bot.start((ctx) => {
   ctx.reply(
-    '👨‍💼 *Grāmatvedis šeit!*\n\nEs esmu tavs personīgais grāmatvedis ar 18 gadu pieredzi Latvijas likumdošanā.\n\nKo varu izdarīt?\n• Izrakstīt rēķinus\n• Pievienot izdevumus\n• Parādīt finanšu pārskatu\n• Atbildēt uz grāmatvedības jautājumiem\n• 📄 Apstrādāt PDF čekus/rēķinus\n\nVienkārši uzraksti ko vajag vai nosūti PDF!',
+    '👨‍💼 *Grāmatvedis šeit!*\n\nEs esmu tavs personīgais grāmatvedis ar 18 gadu pieredzi Latvijas likumdošanā.\n\nKo varu izdarīt?\n• Izrakstīt rēķinus\n• Pievienot izdevumus\n• Parādīt finanšu pārskatu\n• Atbildēt uz grāmatvedības jautājumiem\n• 📄 Apstrādāt PDF čekus/rēķinus\n• 📷 Fotografēt čekus (JPEG/PNG)\n\nVienkārši uzraksti ko vajag vai nosūti failu!',
     { parse_mode: 'Markdown' }
   );
 });
 
-// Galvenais ziņu apstrādātājs
+// ── Teksta ziņas ─────────────────────────────────────────────────────────────
 bot.on('text', async (ctx) => {
-  // Drošība: atļauts tikai norādītais lietotājs
-  if (ALLOWED_USER_ID && ctx.from.id !== ALLOWED_USER_ID) {
-    console.warn(`Neatļauts pieejas mēģinājums no user_id: ${ctx.from.id}`);
-    await ctx.reply('Nav atļauts.');
-    return;
-  }
+  if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
 
-  const userMessage = ctx.message.text;
   const waitMsg = await ctx.reply('⏳ Apstrādā...');
-
   try {
-    // Izsauc claude -p ar gramatvedja instrukciju
-    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei. Izmanto tos lai izpildītu šo uzdevumu. Atbildi latviešu valodā, kodolīgi. Uzdevums: ${userMessage}`;
-
-    const { stdout, stderr } = await execAsync(
-      `${CLAUDE_PATH} -p ${JSON.stringify(prompt)} --allowedTools "mcp__gramatvediba__*" --dangerously-skip-permissions 2>/dev/null`,
-      {
-        cwd: PROJECT_DIR,
-        timeout: 120_000, // 2 minūtes
-        env: { ...process.env, HOME: process.env.HOME },
-      }
-    );
-
-    const response = stdout.trim();
-    if (!response) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, waitMsg.message_id, undefined,
-        '❌ Nav atbildes no Claude.'
-      );
-      return;
-    }
-
-    // Telegram max 4096 simboli vienā ziņā
-    if (response.length <= 4096) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, waitMsg.message_id, undefined,
-        response
-      );
-    } else {
-      await ctx.telegram.deleteMessage(ctx.chat.id, waitMsg.message_id);
-      // Sūta pa daļām
-      for (let i = 0; i < response.length; i += 4000) {
-        await ctx.reply(response.slice(i, i + 4000));
-      }
-    }
+    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei. Izmanto tos lai izpildītu šo uzdevumu. Atbildi latviešu valodā, kodolīgi. Uzdevums: ${ctx.message.text}`;
+    const response = await callClaude(prompt);
+    await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes no Claude.');
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('Kļūda:', errMsg);
-    await ctx.telegram.editMessageText(
-      ctx.chat.id, waitMsg.message_id, undefined,
-      `❌ Kļūda: ${errMsg.slice(0, 500)}`
-    );
+    await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined, `❌ Kļūda: ${errMsg.slice(0, 500)}`);
   }
 });
 
-// PDF dokumentu apstrāde
+// ── PDF dokumenti ─────────────────────────────────────────────────────────────
 bot.on('document', async (ctx) => {
-  // Drošība: atļauts tikai norādītais lietotājs
-  if (ALLOWED_USER_ID && ctx.from.id !== ALLOWED_USER_ID) {
-    console.warn(`Neatļauts pieejas mēģinājums no user_id: ${ctx.from.id}`);
-    await ctx.reply('Nav atļauts.');
-    return;
-  }
+  if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
 
   const doc = ctx.message.document;
+  const mimeType = doc.mime_type ?? '';
+  const isPdf = mimeType.includes('pdf');
+  const isImage = mimeType.startsWith('image/');
 
-  // Pārbauda vai ir PDF
-  if (!doc.mime_type?.includes('pdf')) {
-    await ctx.reply('📄 Lūdzu sūti PDF failu. Atbalstu tikai PDF čekus un rēķinus.');
+  if (!isPdf && !isImage) {
+    await ctx.reply('📄 Atbalstu tikai PDF un attēlu failus (JPEG, PNG).');
     return;
   }
 
-  const waitMsg = await ctx.reply('⏳ Apstrādā PDF...');
+  const waitMsg = await ctx.reply('⏳ Apstrādā failu...');
 
   try {
-    // Lejupielādē failu no Telegram
+    // Lejupielādē failu
     const fileLink = await ctx.telegram.getFileLink(doc.file_id);
     const fileResponse = await fetch(fileLink.href);
-    if (!fileResponse.ok) {
-      throw new Error(`Nevar lejupielādēt failu: ${fileResponse.status}`);
-    }
+    if (!fileResponse.ok) throw new Error(`Nevar lejupielādēt: ${fileResponse.status}`);
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
-    // Izvelk tekstu no PDF (pdf-parse v2 API)
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
-    await parser.load();
-    const textResult = await parser.getText();
-    const extractedText = textResult.text.trim().slice(0, 3000);
+    // Augšupielādē storage
+    const fileName = doc.file_name ?? `receipt-${Date.now()}.${isPdf ? 'pdf' : 'jpg'}`;
+    const { path: storagePath, signedUrl } = await uploadToStorage(buffer, fileName, mimeType || 'application/pdf');
 
-    if (!extractedText) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, waitMsg.message_id, undefined,
-        '❌ Nevar izlasīt tekstu no šī PDF. Iespējams tas ir skenēts attēls.'
-      );
-      return;
+    let extractedText: string;
+
+    if (isPdf) {
+      const { PDFParse } = await import('pdf-parse');
+      const parser = new PDFParse({ data: buffer });
+      await parser.load();
+      const textResult = await parser.getText();
+      extractedText = textResult.text.trim().slice(0, 3000);
+
+      if (!extractedText) {
+        await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined,
+          '❌ Nevar izlasīt tekstu no PDF. Mēģini sūtīt kā foto.');
+        return;
+      }
+    } else {
+      // Attēls — izmanto Claude Vision
+      const safeMime = (mimeType === 'image/jpeg' || mimeType === 'image/png' || mimeType === 'image/webp')
+        ? mimeType as 'image/jpeg' | 'image/png' | 'image/webp'
+        : 'image/jpeg';
+      extractedText = await analyzeReceiptImage(buffer, safeMime);
     }
 
-    // Sūta uz Claude lai identificētu izdevuma datus un pievienotu DB
+    // Sūta Claude pievienot izdevumu ar receipt_url
     const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei.
 
-No šī čeka/rēķina teksta identificē izdevuma datus un pievieno to datubāzē izmantojot add_expense MCP rīku.
+No šiem čeka datiem pievieno izdevumu datubāzē ar add_expense MCP rīku.
+SVARĪGI: obligāti norādi receipt_url: "${signedUrl}" un receipt_path: "${storagePath}"
 
-Izvelktais teksts no PDF:
+Čeka dati:
 ---
 ${extractedText}
 ---
 
-Identificē:
-- Datumu (YYYY-MM-DD formātā)
-- Summu EUR
-- Piegādātāju/uzņēmumu
-- Kategoriju (sakari, transports, degviela, biroja_preces, programmatura, majaslapa, reklama, gramatvediba, telpu_noma, komunalie, apdrosinasana, profesionala_izglitiba, aprikojums, bankas_komisija, citi)
-- PVN summu (ja norādīta)
-- Aprakstu
-
 Pēc pievienošanas atbildi latviešu valodā ar apstiprinājumu un izdevuma kopsavilkumu.`;
 
-    const { stdout } = await execAsync(
-      `${CLAUDE_PATH} -p ${JSON.stringify(prompt)} --allowedTools "mcp__gramatvediba__*" --dangerously-skip-permissions 2>/dev/null`,
-      {
-        cwd: PROJECT_DIR,
-        timeout: 120_000,
-        env: { ...process.env, HOME: process.env.HOME },
-      }
-    );
+    const response = await callClaude(prompt);
+    await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes no Claude.');
 
-    const response = stdout.trim();
-    if (!response) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, waitMsg.message_id, undefined,
-        '❌ Nav atbildes no Claude.'
-      );
-      return;
-    }
-
-    if (response.length <= 4096) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, waitMsg.message_id, undefined,
-        response
-      );
-    } else {
-      await ctx.telegram.deleteMessage(ctx.chat.id, waitMsg.message_id);
-      for (let i = 0; i < response.length; i += 4000) {
-        await ctx.reply(response.slice(i, i + 4000));
-      }
-    }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error('PDF kļūda:', errMsg);
-    await ctx.telegram.editMessageText(
-      ctx.chat.id, waitMsg.message_id, undefined,
-      `❌ Kļūda apstrādājot PDF: ${errMsg.slice(0, 500)}`
-    );
+    console.error('Faila kļūda:', errMsg);
+    await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined,
+      `❌ Kļūda apstrādājot failu: ${errMsg.slice(0, 500)}`);
   }
 });
 
-// Gracioza apturēšana
+// ── Foto (tieši no kameras) ──────────────────────────────────────────────────
+bot.on('photo', async (ctx) => {
+  if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
+
+  const waitMsg = await ctx.reply('⏳ Atpazīst čeku...');
+
+  try {
+    // Augstākā kvalitāte — pēdējais foto masīvā
+    const photo = ctx.message.photo[ctx.message.photo.length - 1];
+    const fileLink = await ctx.telegram.getFileLink(photo.file_id);
+    const fileResponse = await fetch(fileLink.href);
+    if (!fileResponse.ok) throw new Error(`Nevar lejupielādēt: ${fileResponse.status}`);
+    const buffer = Buffer.from(await fileResponse.arrayBuffer());
+
+    // Augšupielādē storage
+    const fileName = `receipt-${Date.now()}.jpg`;
+    const { path: storagePath, signedUrl } = await uploadToStorage(buffer, fileName, 'image/jpeg');
+
+    // Atpazīst čeku ar Claude Vision
+    const extractedText = await analyzeReceiptImage(buffer, 'image/jpeg');
+
+    // Sūta Claude pievienot izdevumu
+    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei.
+
+No šiem čeka datiem pievieno izdevumu datubāzē ar add_expense MCP rīku.
+SVARĪGI: obligāti norādi receipt_url: "${signedUrl}" un receipt_path: "${storagePath}"
+
+Čeka dati (atpazīti no foto):
+---
+${extractedText}
+---
+
+Pēc pievienošanas atbildi latviešu valodā ar apstiprinājumu un izdevuma kopsavilkumu.`;
+
+    const response = await callClaude(prompt);
+    await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes no Claude.');
+
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('Foto kļūda:', errMsg);
+    await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined,
+      `❌ Kļūda apstrādājot foto: ${errMsg.slice(0, 500)}`);
+  }
+});
+
+// ── Gracioza apturēšana ──────────────────────────────────────────────────────
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
