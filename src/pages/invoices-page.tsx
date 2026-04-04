@@ -8,6 +8,8 @@ import { InvoicePdfDocument, type InvoicePdfData } from '@/features/invoices/inv
 import { formatCurrency, formatDate } from '@/lib/format'
 import { parseNumber, roundMoney } from '@/lib/numbers'
 import { parseInvoicePdf } from '@/lib/pdf-invoice-import'
+import { parseInvoiceWithAI } from '@/lib/invoice-ai-recognition'
+import { env } from '@/lib/env'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -389,7 +391,40 @@ export function InvoicesPage() {
     setFeedback(null)
 
     try {
-      const parsed = await parseInvoicePdf(file)
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+      let parsed = null
+      let aiUsed = false
+
+      if (env.anthropicApiKey) {
+        try {
+          let pdfText: string | undefined
+          if (isPdf) {
+            const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+            const pdfWorkerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
+            GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+            const buffer = await file.arrayBuffer()
+            const pdf = await getDocument({ data: new Uint8Array(buffer) }).promise
+            const lines: string[] = []
+            for (let p = 1; p <= pdf.numPages; p++) {
+              const page = await pdf.getPage(p)
+              const content = await page.getTextContent()
+              lines.push(...(content.items as { str: string }[]).map((i) => i.str))
+            }
+            pdfText = lines.join(' ')
+          }
+          parsed = await parseInvoiceWithAI(file, pdfText)
+          aiUsed = true
+        } catch (aiError) {
+          console.error('[Invoice AI]', aiError)
+          // fallback to regex below
+        }
+      }
+
+      if (!parsed) {
+        if (!isPdf) throw new Error('Attēlu importam nepieciešama AI (VITE_ANTHROPIC_API_KEY).')
+        parsed = await parseInvoicePdf(file)
+      }
 
       if (parsed.sourceInvoiceNumber) {
         const { data: existingInvoice, error: checkError } = await supabase
@@ -431,8 +466,8 @@ export function InvoicesPage() {
       setShowPreview(true)
       setFeedback(
         parsed.sourceInvoiceNumber
-          ? `PDF nolasīts. Rēķins ${parsed.sourceInvoiceNumber} aizpildīts melnrakstā, pārbaudi un saglabā.`
-          : 'PDF nolasīts. Melnraksts aizpildīts, pārbaudi un saglabā.',
+          ? `${aiUsed ? 'AI nolasīja' : 'Nolasīts'}. Rēķins ${parsed.sourceInvoiceNumber} aizpildīts melnrakstā — pārbaudi un saglabā.`
+          : `${aiUsed ? 'AI nolasīja dokumentu' : 'Dokuments nolasīts'}. Melnraksts aizpildīts — pārbaudi un saglabā.`,
       )
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Neizdevās nolasīt PDF rēķinu.')
@@ -634,9 +669,9 @@ export function InvoicesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3 xl:justify-end">
             <button type="button" onClick={clearFilters} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium">Notīrīt filtrus</button>
-            <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" onChange={handleImportPdf} className="hidden" />
+            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf" onChange={handleImportPdf} className="hidden" />
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importingPdf} className="pipboy-button pipboy-button-ghost px-5 py-3 font-medium disabled:opacity-60">
-              {importingPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}{importingPdf ? 'Importējam PDF...' : 'Importēt PDF'}
+              {importingPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}{importingPdf ? 'Importējam...' : 'Importēt PDF/JPG'}
             </button>
             <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">
               {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Izveidot rēķinu'}
