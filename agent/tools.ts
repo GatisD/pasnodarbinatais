@@ -23,7 +23,16 @@ export async function initSupabase(): Promise<{ userId: string }> {
   if (!url || !key) throw new Error('Nav SUPABASE_URL vai SUPABASE_KEY vides mainīgais');
   if (!email || !password) throw new Error('Nav AGENT_USER_EMAIL vai AGENT_USER_PASSWORD vides mainīgais');
 
-  _supabase = createClient(url, key);
+  _supabase = createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  if (!_supabase.auth) throw new Error(`Supabase auth modulis nav inicializēts. Pārbaudi SUPABASE_URL un PUBLISHABLE_KEY.`);
+
   const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
   if (error || !data.session) throw new Error(`Supabase autentifikācijas kļūda: ${error?.message}`);
 
