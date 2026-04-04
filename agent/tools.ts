@@ -23,7 +23,30 @@ export async function initSupabase(): Promise<{ userId: string }> {
   if (!url || !key) throw new Error('Nav SUPABASE_URL vai SUPABASE_KEY vides mainīgais');
   if (!email || !password) throw new Error('Nav AGENT_USER_EMAIL vai AGENT_USER_PASSWORD vides mainīgais');
 
+  // Autentificēties tieši caur REST API (sb_publishable_* atslēga bloķē .auth moduli Node.js vidē)
+  const authRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': key,
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!authRes.ok) {
+    const errText = await authRes.text();
+    throw new Error(`Autentifikācijas kļūda (${authRes.status}): ${errText}`);
+  }
+
+  const authData = await authRes.json() as { access_token: string; user: { id: string } };
+  _accessToken = authData.access_token;
+  _userId = authData.user.id;
+
+  // Izveidot Supabase klientu ar access token (RLS darbosies pareizi)
   _supabase = createClient(url, key, {
+    global: {
+      headers: { Authorization: `Bearer ${_accessToken}` },
+    },
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -31,13 +54,6 @@ export async function initSupabase(): Promise<{ userId: string }> {
     },
   });
 
-  if (!_supabase.auth) throw new Error(`Supabase auth modulis nav inicializēts. Pārbaudi SUPABASE_URL un PUBLISHABLE_KEY.`);
-
-  const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.session) throw new Error(`Supabase autentifikācijas kļūda: ${error?.message}`);
-
-  _accessToken = data.session.access_token;
-  _userId = data.user.id;
   return { userId: _userId };
 }
 
