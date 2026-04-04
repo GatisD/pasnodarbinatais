@@ -5,7 +5,9 @@ import path from 'path';
 import { Telegraf } from 'telegraf';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import pdfParse from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
 
 // Ielādē .env no projekta saknes
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
