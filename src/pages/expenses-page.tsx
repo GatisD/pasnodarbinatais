@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Copy, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ChevronDown, Copy, ExternalLink, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
@@ -459,13 +460,13 @@ export function ExpensesPage() {
           <div className="pipboy-empty px-5 py-8 text-base leading-8">Nekas neatbilst atlasītajiem filtriem.</div>
         ) : (
           <div className="overflow-hidden rounded-[20px] border border-[rgba(0,255,70,0.12)]">
-            <div className="hidden grid-cols-[110px_minmax(180px,1.4fr)_auto_auto_minmax(90px,auto)] gap-4 bg-[rgba(9,19,9,0.9)] px-5 py-3 text-xs font-medium uppercase tracking-wider text-[rgba(184,255,184,0.6)] lg:grid">
-              <span>Datums</span><span>Piegādātājs / apraksts</span><span>Kategorija</span><span>Fails</span><span className="text-right">Summa</span>
+            <div className="hidden grid-cols-[100px_1fr_auto_110px_auto] gap-3 bg-[rgba(9,19,9,0.9)] px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-[rgba(184,255,184,0.6)] lg:grid">
+              <span>Datums</span><span>Piegādātājs / apraksts</span><span>Kategorija</span><span className="text-right">Summa</span><span className="text-right">Darbības</span>
             </div>
             <div className="divide-y divide-[rgba(0,255,70,0.08)]">
               {filtered.map((expense) => (
-                <article key={expense.id} className="px-4 py-3">
-                  {/* Mobile layout */}
+                <article key={expense.id} className="px-4 py-2.5">
+                  {/* Mobile */}
                   <div className="lg:hidden">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -477,42 +478,36 @@ export function ExpensesPage() {
                         <p className="text-xs pipboy-subtle">PVN: {formatCurrency(expense.vat_amount)}</p>
                       </div>
                     </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs">
                       <span className="text-[#efffeb]">{formatDate(expense.date)}</span>
                       <span className="pipboy-subtle">·</span>
                       <span className="pipboy-status pipboy-status-paid">{getCategoryLabel(expense.category)}</span>
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {expense.receipt_url && <a className="pipboy-button flex-1 px-3 py-2 text-xs font-medium" href={expense.receipt_url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" />Fails</a>}
+                      <button type="button" onClick={() => openEditor(expense, false)} className="pipboy-button flex-1 px-3 py-2 text-xs font-medium"><Pencil className="h-3.5 w-3.5" />Rediģēt</button>
+                      <button type="button" onClick={() => openEditor(expense, true)} className="pipboy-button pipboy-button-warning flex-1 px-3 py-2 text-xs font-medium"><Copy className="h-3.5 w-3.5" />Dublēt</button>
+                      <button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button>
+                    </div>
                   </div>
-                  {/* Desktop layout */}
-                  <div className="hidden gap-4 lg:grid lg:grid-cols-[110px_minmax(180px,1.4fr)_auto_auto_minmax(90px,auto)] lg:items-center">
+                  {/* Desktop — single row */}
+                  <div className={cn('hidden items-center gap-3 lg:grid lg:grid-cols-[100px_1fr_auto_110px_auto]')}>
                     <div className="text-sm font-medium text-[#efffeb]">{formatDate(expense.date)}</div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold pipboy-title">{expense.vendor || 'Bez piegādātāja nosaukuma'}</p>
                       <p className="mt-0.5 truncate text-xs pipboy-subtle">{expense.description || 'Izdevumu ieraksts'}</p>
                     </div>
                     <div><span className="pipboy-status pipboy-status-paid">{getCategoryLabel(expense.category)}</span></div>
-                    <div>
-                      {expense.receipt_url ? (
-                        <a className="pipboy-button px-3 py-1.5 text-xs" href={expense.receipt_url} target="_blank" rel="noreferrer">Atvērt failu</a>
-                      ) : (
-                        <span className="text-xs pipboy-subtle">Nav faila</span>
-                      )}
-                    </div>
                     <div className="text-right">
-                      <p className="text-lg font-semibold pipboy-accent-strong">{formatCurrency(expense.amount)}</p>
+                      <p className="text-base font-semibold pipboy-accent-strong">{formatCurrency(expense.amount)}</p>
                       <p className="mt-0.5 text-xs pipboy-subtle">PVN: {formatCurrency(expense.vat_amount)}</p>
                     </div>
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    {expense.receipt_url && (
-                      <a className="pipboy-button flex-1 px-3 py-2 text-xs font-medium lg:hidden" href={expense.receipt_url} target="_blank" rel="noreferrer"><FileUp className="h-3.5 w-3.5" />Fails</a>
-                    )}
-                    <button type="button" onClick={() => openEditor(expense, false)} className="pipboy-button flex-1 px-3 py-2 text-xs font-medium"><Pencil className="h-3.5 w-3.5" />Rediģēt</button>
-                    <button type="button" onClick={() => openEditor(expense, true)} className="pipboy-button pipboy-button-warning flex-1 px-3 py-2 text-xs font-medium"><Copy className="h-3.5 w-3.5" />Dublēt</button>
-                    <button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger flex-1 px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingExpenseId === expense.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      {deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}
-                    </button>
+                    <div className="flex shrink-0 items-center justify-end gap-1">
+                      {expense.receipt_url && <a href={expense.receipt_url} target="_blank" rel="noreferrer" title="Atvērt failu" className="pipboy-button h-8 w-8 rounded-full p-0"><ExternalLink className="h-4 w-4" /></a>}
+                      <button type="button" onClick={() => openEditor(expense, false)} title="Rediģēt" className="pipboy-button h-8 w-8 rounded-full p-0"><Pencil className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => openEditor(expense, true)} title="Dublēt" className="pipboy-button pipboy-button-warning h-8 w-8 rounded-full p-0"><Copy className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} title="Dzēst" className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0 disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
+                    </div>
                   </div>
                 </article>
               ))}
