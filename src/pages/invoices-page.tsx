@@ -202,7 +202,15 @@ export function InvoicesPage() {
       setFeedback(getFriendlySupabaseError(error.message))
       return void setIsLoading(false)
     }
-    setInvoices((data ?? []).map((row: any) => ({ ...row, client: row.clients ?? null, subtotal: Number(row.subtotal ?? 0), vat_amount: Number(row.vat_amount ?? 0), vat_rate: Number(row.vat_rate ?? 0), total: Number(row.total ?? 0) })))
+    const rows: Invoice[] = (data ?? []).map((row: any) => ({ ...row, client: row.clients ?? null, subtotal: Number(row.subtotal ?? 0), vat_amount: Number(row.vat_amount ?? 0), vat_rate: Number(row.vat_rate ?? 0), total: Number(row.total ?? 0) }))
+    const today = new Date().toISOString().slice(0, 10)
+    const overdueIds = rows.filter((inv) => inv.status === 'izrakstits' && inv.due_date < today).map((inv) => inv.id)
+    if (overdueIds.length && supabase) {
+      await supabase.from('invoices').update({ status: 'kavejas' }).in('id', overdueIds).eq('user_id', user.id)
+      setInvoices(rows.map((inv) => overdueIds.includes(inv.id) ? { ...inv, status: 'kavejas' as Status } : inv))
+    } else {
+      setInvoices(rows)
+    }
     setIsLoading(false)
   }
 
@@ -753,22 +761,23 @@ export function InvoicesPage() {
       <section className="pipboy-panel rounded-[28px] p-3 md:p-4">
         {isLoading ? <div className="pipboy-surface px-4 py-6 text-sm pipboy-subtle">Ielādējam rēķinus...</div> : filtered.length === 0 ? <div className="pipboy-empty px-5 py-8 text-base leading-8">Nekas neatbilst atlasītajiem filtriem.</div> : (
           <div className="overflow-hidden rounded-[20px] border border-[rgba(0,255,70,0.12)]">
-            <div className="hidden grid-cols-[120px_minmax(200px,1.6fr)_200px_210px_auto] gap-3 bg-[rgba(9,19,9,0.9)] px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-[rgba(184,255,184,0.6)] lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span className="text-right">Summa</span></div>
+            <div className="hidden grid-cols-[120px_minmax(200px,1.6fr)_200px_100px_auto] gap-3 bg-[rgba(9,19,9,0.9)] px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-[rgba(184,255,184,0.6)] lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span className="text-right">Summa</span></div>
             <div className="divide-y divide-[rgba(0,255,70,0.08)]">
               {filtered.map((invoice) => (
                 <article key={invoice.id} className="px-4 py-2.5">
-                  <div className="grid gap-3 lg:grid-cols-[120px_minmax(200px,1.6fr)_200px_210px_auto] lg:items-center">
+                  <div className="grid gap-3 lg:grid-cols-[120px_minmax(200px,1.6fr)_200px_100px_auto] lg:items-center">
                     <div className="text-sm font-medium text-[#efffeb]">{formatDate(invoice.issue_date)}</div>
                     <div className="min-w-0"><p className="truncate text-sm font-semibold pipboy-title">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="truncate text-xs pipboy-subtle">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
                     <div><p className="text-sm font-semibold pipboy-accent-strong">{invoice.invoice_number ?? 'Bez numura'}</p><p className="text-xs pipboy-subtle">Termiņš: {formatDate(invoice.due_date)}</p></div>
-                    <div className="flex items-center gap-2"><span className={pill[invoice.status]}>{labels[invoice.status]}</span><div className="relative flex-1"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="pipboy-input w-full appearance-none px-3 py-1.5 pr-8 text-xs disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pipboy-subtle" /></div></div>
+                    <div><span className={pill[invoice.status]}>{labels[invoice.status]}</span></div>
                     <p className="text-lg font-semibold pipboy-accent-strong lg:text-right">{formatCurrency(invoice.total)}</p>
                   </div>
-                  <div className="mt-2 flex items-center justify-evenly gap-2">
+                  <div className="mt-2 flex items-center gap-2">
                     <button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button flex-1 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}PDF</button>
                     <button type="button" onClick={() => void handleSendEmail(invoice)} disabled={sendingEmailId === invoice.id} title={invoice.client?.email ? `Sūtīt uz ${invoice.client.email}` : 'Klientam nav norādīts e-pasts'} className="pipboy-button flex-1 px-2.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 border border-[rgba(0,255,70,0.55)] bg-[rgba(0,255,70,0.13)] text-[#5dff7a] hover:bg-[rgba(0,255,70,0.22)] hover:border-[rgba(0,255,70,0.8)] hover:text-[#afffbc] transition-colors">{sendingEmailId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}{sendingEmailId === invoice.id ? 'Gatavojam...' : 'Sūtīt'}</button>
                     <button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button flex-1 px-2.5 py-1.5 text-xs font-medium disabled:opacity-60"><Pencil className="h-3.5 w-3.5" />Rediģēt</button>
                     <button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button pipboy-button-warning flex-1 px-2.5 py-1.5 text-xs font-medium disabled:opacity-60"><Copy className="h-3.5 w-3.5" />Dublēt</button>
+                    <div className="relative flex-1"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="pipboy-button w-full appearance-none px-2.5 py-1.5 pr-7 text-xs cursor-pointer disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pipboy-subtle" /></div>
                     <button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger flex-1 px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button>
                   </div>
                 </article>
