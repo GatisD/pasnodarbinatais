@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer'
-import { ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Mail, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 
 import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
@@ -120,6 +120,7 @@ export function InvoicesPage() {
   const [showComposer, setShowComposer] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
   const [importingHistory, setImportingHistory] = useState(false)
@@ -569,6 +570,55 @@ export function InvoicesPage() {
       setDownloadingId(null)
     }
   }
+  async function handleSendEmail(invoice: Invoice) {
+    if (!supabase || !user) return
+    setSendingEmailId(invoice.id)
+    const itemRows = await loadInvoiceItems(invoice.id)
+    if (!itemRows.length) return void setSendingEmailId(null)
+    const pdfData: InvoicePdfData = {
+      client: { address: invoice.client?.address, bankIban: invoice.client?.bank_iban, email: invoice.client?.email, name: invoice.client?.name ?? 'Klients nav izvēlēts', regNumber: invoice.client?.reg_number },
+      dueDate: invoice.due_date,
+      invoiceNumber: invoice.invoice_number ?? `rekins-${invoice.id}`,
+      issueDate: invoice.issue_date,
+      items: itemRows.map((item) => ({ description: item.description, quantity: item.quantity, total: item.total, unit: item.unit, unitPrice: item.unit_price })),
+      notes: invoice.notes ?? '',
+      profile: { address: profile?.address, bankIban: profile?.bank_iban, bankName: profile?.bank_name, email: profile?.email ?? user.email ?? null, name: profile?.full_name ?? 'Pašnodarbinātais', phone: profile?.phone, regNumber: profile?.person_code },
+      subtotal: invoice.subtotal,
+      total: invoice.total,
+      vatAmount: invoice.vat_amount,
+      vatRateLabel: `${roundMoney(invoice.vat_rate * 100).toFixed(0)}%`,
+    }
+    try {
+      const blob = await pdf(<InvoicePdfDocument data={pdfData} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${pdfData.invoiceNumber}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+
+      const senderName = profile?.full_name ?? user.email ?? 'Pašnodarbinātais'
+      const subject = `${pdfData.invoiceNumber}`
+      const body = [
+        'Labdien!',
+        '',
+        `Paldies par līdzšinējo sadarbību! Pielikumā atradīsiet ${pdfData.invoiceNumber}.`,
+        '',
+        'Ja rodas kādi jautājumi, esmu gatavs palīdzēt.',
+        '',
+        `Ar cieņu,\n${senderName}`,
+      ].join('\n')
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(invoice.client?.email ?? '')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+      window.open(gmailUrl, '_blank', 'noopener,noreferrer')
+    } catch {
+      setFeedback('Neizdevās sagatavot e-pastu.')
+    } finally {
+      setSendingEmailId(null)
+    }
+  }
+
   void handleImportHistoricalInvoices
 
   return (
@@ -669,7 +719,7 @@ export function InvoicesPage() {
                   <div className="min-w-0"><p className="truncate text-lg font-semibold pipboy-title">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-1 truncate text-sm pipboy-subtle">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
                   <div><p className="text-base font-semibold pipboy-accent-strong">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-1 text-sm pipboy-subtle">Termiņš: {formatDate(invoice.due_date)}</p></div>
                   <div className="space-y-2"><span className={pill[invoice.status]}>{labels[invoice.status]}</span><div className="relative"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="pipboy-input appearance-none px-4 py-3 pr-10 text-sm disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></div>
-                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold pipboy-accent-strong">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button pipboy-button-warning px-3 py-2 text-sm font-medium disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
+                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-end"><p className="text-2xl font-semibold pipboy-accent-strong">{formatCurrency(invoice.total)}</p><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</button><button type="button" onClick={() => void handleSendEmail(invoice)} disabled={sendingEmailId === invoice.id} title={invoice.client?.email ? `Sūtīt uz ${invoice.client.email}` : 'Klientam nav norādīts e-pasts'} className="pipboy-button px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 border border-[rgba(0,255,70,0.55)] bg-[rgba(0,255,70,0.13)] text-[#5dff7a] hover:bg-[rgba(0,255,70,0.22)] hover:border-[rgba(0,255,70,0.8)] hover:text-[#afffbc] transition-colors">{sendingEmailId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sendingEmailId === invoice.id ? 'Gatavojam...' : 'Sūtīt'}</button><button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button px-3 py-2 text-sm font-medium disabled:opacity-60"><Pencil className="h-4 w-4" />Rediģēt</button><button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button pipboy-button-warning px-3 py-2 text-sm font-medium disabled:opacity-60"><Copy className="h-4 w-4" />Dublēt</button><button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{deletingInvoiceId === invoice.id ? 'Dzēšam...' : 'Dzēst'}</button></div></div>
                 </article>
               ))}
             </div>
