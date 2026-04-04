@@ -475,8 +475,12 @@ export async function parseExpenseDocument(file: File): Promise<ParsedExpenseDoc
     try {
       const pdfText = isPdf ? await extractPdfText(file) : undefined
       return await parseReceiptWithAI(file, env.anthropicApiKey, pdfText)
-    } catch {
-      // AI failed — fall through to regex-based parsing below
+    } catch (aiError) {
+      // Surface AI errors clearly so they are visible in browser console
+      console.error('[Receipt AI] kļūda:', aiError instanceof Error ? aiError.message : aiError)
+      throw new Error(
+        `AI atpazīšana neizdevās: ${aiError instanceof Error ? aiError.message : 'nezināma kļūda'}. Pārbaudi API atslēgu Vercel iestatījumos.`,
+      )
     }
   }
 
