@@ -701,10 +701,10 @@ export function InvoicesPage() {
           <Stat title="Kavējas" value={String(summary.late)} compact />
         </div>
 
-        <div className="mt-3 grid gap-2 xl:grid-cols-[200px_200px_1fr]">
+        <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-[200px_200px_1fr]">
           <Field title="Mēnesis"><PickerInput type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="py-2 text-sm" /></Field>
           <Field title="Statuss"><div className="relative"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | Status)} className="pipboy-input w-full appearance-none px-3 py-2 pr-10 text-sm"><option value="all">Visi statusi</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></Field>
-          <Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-2 pl-10 pr-4 text-sm" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field>
+          <div className="col-span-2 xl:col-span-1"><Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-2 pl-10 pr-4 text-sm" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field></div>
         </div>
         {feedback ? <div className="pipboy-surface mt-3 px-4 py-2.5 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>
@@ -764,15 +764,33 @@ export function InvoicesPage() {
             <div className="hidden grid-cols-[110px_minmax(180px,1.4fr)_180px_minmax(120px,auto)_minmax(90px,auto)] gap-4 bg-[rgba(9,19,9,0.9)] px-5 py-3 text-xs font-medium uppercase tracking-wider text-[rgba(184,255,184,0.6)] lg:grid"><span>Datums</span><span>Klients / apraksts</span><span>Dokuments</span><span>Statuss</span><span className="text-right">Summa</span></div>
             <div className="divide-y divide-[rgba(0,255,70,0.08)]">
               {filtered.map((invoice) => (
-                <article key={invoice.id} className="px-5 py-3">
-                  <div className="grid gap-4 lg:grid-cols-[110px_minmax(180px,1.4fr)_180px_minmax(120px,auto)_minmax(90px,auto)] lg:items-center">
+                <article key={invoice.id} className="px-4 py-3">
+                  {/* Mobile layout */}
+                  <div className="lg:hidden">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold pipboy-title">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p>
+                        <p className="mt-0.5 truncate text-xs pipboy-subtle">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p>
+                      </div>
+                      <p className="shrink-0 text-base font-semibold pipboy-accent-strong">{formatCurrency(invoice.total)}</p>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      <span className="text-[#efffeb]">{formatDate(invoice.issue_date)}</span>
+                      <span className="pipboy-subtle">·</span>
+                      <span className="pipboy-accent-strong font-semibold">{invoice.invoice_number ?? '—'}</span>
+                      <span className="pipboy-subtle">· Termiņš: {formatDate(invoice.due_date)}</span>
+                    </div>
+                    <div className="mt-1.5"><span className={pill[invoice.status]}>{labels[invoice.status]}</span></div>
+                  </div>
+                  {/* Desktop layout */}
+                  <div className="hidden gap-4 lg:grid lg:grid-cols-[110px_minmax(180px,1.4fr)_180px_minmax(120px,auto)_minmax(90px,auto)] lg:items-center">
                     <div className="text-sm font-medium text-[#efffeb]">{formatDate(invoice.issue_date)}</div>
                     <div className="min-w-0"><p className="truncate text-sm font-semibold pipboy-title">{invoice.client?.name ?? 'Bez klienta nosaukuma'}</p><p className="mt-0.5 truncate text-xs pipboy-subtle">{invoice.notes || invoice.client?.reg_number || 'Rēķina ieraksts'}</p></div>
                     <div><p className="text-sm font-semibold pipboy-accent-strong">{invoice.invoice_number ?? 'Bez numura'}</p><p className="mt-0.5 text-xs pipboy-subtle">Termiņš: {formatDate(invoice.due_date)}</p></div>
                     <div><span className={pill[invoice.status]}>{labels[invoice.status]}</span></div>
                     <p className="text-lg font-semibold pipboy-accent-strong lg:text-right">{formatCurrency(invoice.total)}</p>
                   </div>
-                  <div className="mt-2.5 flex items-center gap-2">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <button type="button" onClick={() => void handleDownload(invoice)} disabled={downloadingId === invoice.id} className="pipboy-button flex-1 px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60">{downloadingId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}PDF</button>
                     <button type="button" onClick={() => void handleSendEmail(invoice)} disabled={sendingEmailId === invoice.id} title={invoice.client?.email ? `Sūtīt uz ${invoice.client.email}` : 'Klientam nav norādīts e-pasts'} className="pipboy-button flex-1 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 border border-[rgba(0,255,70,0.55)] bg-[rgba(0,255,70,0.13)] text-[#5dff7a] hover:bg-[rgba(0,255,70,0.22)] hover:border-[rgba(0,255,70,0.8)] hover:text-[#afffbc] transition-colors">{sendingEmailId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}{sendingEmailId === invoice.id ? 'Gatavojam...' : 'Sūtīt'}</button>
                     <button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60"><Pencil className="h-3.5 w-3.5" />Rediģēt</button>
