@@ -49,7 +49,7 @@ bot.on('text', async (ctx) => {
     const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei. Izmanto tos lai izpildītu šo uzdevumu. Atbildi latviešu valodā, kodolīgi. Uzdevums: ${userMessage}`;
 
     const { stdout, stderr } = await execAsync(
-      `${CLAUDE_PATH} -p ${JSON.stringify(prompt)} --allowedTools "mcp__gramatvediba__*,Bash" 2>/dev/null`,
+      `${CLAUDE_PATH} -p ${JSON.stringify(prompt)} --allowedTools "mcp__gramatvediba__*" --dangerously-skip-permissions 2>/dev/null`,
       {
         cwd: PROJECT_DIR,
         timeout: 120_000, // 2 minūtes
