@@ -117,10 +117,12 @@ bot.on('document', async (ctx) => {
     }
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
-    // Izvelk tekstu no PDF
-    const { default: pdfParse } = await import('pdf-parse') as { default: (buf: Buffer) => Promise<{ text: string }> };
-    const pdfData = await pdfParse(buffer);
-    const extractedText = pdfData.text.trim().slice(0, 3000);
+    // Izvelk tekstu no PDF (pdf-parse v2 API)
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: buffer });
+    await parser.load();
+    const textResult = await parser.getText();
+    const extractedText = textResult.text.trim().slice(0, 3000);
 
     if (!extractedText) {
       await ctx.telegram.editMessageText(
