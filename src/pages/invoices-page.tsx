@@ -695,19 +695,19 @@ export function InvoicesPage() {
   return (
     <div className="grid gap-4">
       <section className="pipboy-panel rounded-[28px] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h3 className="pipboy-title text-2xl font-semibold">Rēķini</h3>
             <span className="pipboy-subtle text-sm">Gada ieņēmumi: <span className="pipboy-accent-strong font-semibold">{formatCurrency(summary.yearIncome)}</span></span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={clearFilters} className="pipboy-button pipboy-button-ghost px-4 py-2 text-sm font-medium">Notīrīt filtrus</button>
+            <button type="button" onClick={clearFilters} className="pipboy-button pipboy-button-ghost px-3 py-2 text-xs font-medium">Notīrīt filtrus</button>
             <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf" onChange={handleImportPdf} className="hidden" />
-            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importingPdf} className="pipboy-button pipboy-button-ghost px-4 py-2 text-sm font-medium disabled:opacity-60">
-              {importingPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}{importingPdf ? 'Importējam...' : 'Importēt PDF/JPG'}
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importingPdf} className="pipboy-button pipboy-button-ghost px-3 py-2 text-xs font-medium disabled:opacity-60">
+              {importingPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}{importingPdf ? 'Importējam...' : 'Importēt'}
             </button>
-            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-4 py-2 text-sm font-medium">
-              {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt formu' : 'Izveidot rēķinu'}
+            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-3 py-2 text-xs font-medium">
+              {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt' : 'Jauns rēķins'}
             </button>
           </div>
         </div>
