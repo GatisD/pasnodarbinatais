@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js';
 import { generateInvoicePdf, type InvoicePdfData } from './pdf-generator.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ export async function initSupabase(): Promise<{ userId: string }> {
   _userId = authData.user.id;
 
   // Izveidot Supabase klientu ar access token (RLS darbosies pareizi)
-  _supabase = createClient(url, key, {
+  _supabase = createSupabaseClient(url, key, {
     global: {
       headers: { Authorization: `Bearer ${_accessToken}` },
     },
