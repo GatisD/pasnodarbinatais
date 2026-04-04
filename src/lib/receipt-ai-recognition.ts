@@ -1,7 +1,7 @@
 import { type ExpenseCategory, type ParsedExpenseDocument } from './expense-document-import'
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-haiku-4-5-20251001'
+const MODEL = 'claude-3-5-haiku-20241022'
 
 const CATEGORY_VALUES: ExpenseCategory[] = [
   'sakari',
