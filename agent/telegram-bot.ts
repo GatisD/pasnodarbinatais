@@ -219,10 +219,11 @@ bot.on('document', async (ctx) => {
     }
 
     // Sūta Claude pievienot izdevumu ar receipt_url
-    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei.
+    const docCaption = ctx.message.caption ? `\nLietotāja instrukcija: "${ctx.message.caption}"\nJa norādīts mēnesis vai gads, izmanto to kā datumu (ignorē čeka datumu).` : '';
+    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei. Šodienas datums: ${new Date().toISOString().slice(0, 10)}.
 
 No šiem čeka datiem pievieno izdevumu datubāzē ar add_expense MCP rīku.
-SVARĪGI: obligāti norādi receipt_url: "${signedUrl}" un receipt_path: "${storagePath}"
+SVARĪGI: obligāti norādi receipt_url: "${signedUrl}" un receipt_path: "${storagePath}"${docCaption}
 
 Čeka dati:
 ---
@@ -264,10 +265,11 @@ bot.on('photo', async (ctx) => {
     const extractedText = await analyzeReceiptImage(buffer, 'image/jpeg');
 
     // Sūta Claude pievienot izdevumu
-    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei.
+    const photoCaption = ctx.message.caption ? `\nLietotāja instrukcija: "${ctx.message.caption}"\nJa norādīts mēnesis vai gads, izmanto to kā datumu (ignorē čeka datumu).` : '';
+    const prompt = `Tu esi Latvijas grāmatvedis ar 18 gadu pieredzi. Tev ir pieejami gramatvediba MCP rīki Supabase datubāzei. Šodienas datums: ${new Date().toISOString().slice(0, 10)}.
 
 No šiem čeka datiem pievieno izdevumu datubāzē ar add_expense MCP rīku.
-SVARĪGI: obligāti norādi receipt_url: "${signedUrl}" un receipt_path: "${storagePath}"
+SVARĪGI: obligāti norādi receipt_url: "${signedUrl}" un receipt_path: "${storagePath}"${photoCaption}
 
 Čeka dati (atpazīti no foto):
 ---
