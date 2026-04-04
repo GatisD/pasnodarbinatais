@@ -262,7 +262,7 @@ export function DashboardPage() {
                   <Icon className="h-5 w-5" />
                 </div>
               </div>
-              <p className="pipboy-stat-value mt-8 text-5xl font-semibold tracking-tight">
+              <p className="pipboy-stat-value mt-8 text-4xl font-semibold tracking-tight break-words">
                 {isLoading ? '...' : card.value}
               </p>
               <p className="pipboy-stat-label mt-3 text-sm">
