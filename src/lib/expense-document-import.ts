@@ -159,7 +159,7 @@ async function extractPdfText(file: File) {
 }
 
 async function getOcrWorker() {
-  if (!ocrWorkerPromise) ocrWorkerPromise = createWorker('eng')
+  if (!ocrWorkerPromise) ocrWorkerPromise = createWorker('lav+eng')
   return ocrWorkerPromise
 }
 
@@ -366,7 +366,8 @@ function parseGenericPdf(text: string): ParsedExpenseDocument | null {
       /Amount paid\s+€?([0-9]+(?:[.,][0-9]{2})?)/i,
       /Grand total.*?([0-9]+(?:[.,][0-9]{2})?)/i,
       /Total\s+€?([0-9]+(?:[.,][0-9]{2})?)/i,
-      /Kopā\s+([0-9]+(?:[.,][0-9]{2})?)/i,
+      // "Kopā EUR 52.90" or "Kopā 52.90" — Latvian receipt totals
+      /Kop[aā][^0-9]{0,15}?([0-9]+(?:[.,][0-9]{2})?)/i,
     ]),
   ) || fallbackAmount(text)
 
@@ -418,7 +419,9 @@ function parseReceiptImage(text: string): ParsedExpenseDocument | null {
   const amount =
     parseDecimal(
       firstMatch(text, [
-        /(?:KOPĀ|KOPA|SUMMA)\s*(?:EUR)?\s*[: ]\s*(\d+(?:[.,]\d+)?)/i,
+        // "KOPĀ EUR 52.90" — EUR before amount (Latvian receipt format)
+        /(?:KOPĀ|KOPA|SUMMA)[^0-9]{0,20}?(\d+(?:[.,]\d+)?)/i,
+        // "26.89 EUR" — amount before EUR
         /(\d+(?:[.,]\d+)?)\s*EUR/i,
       ]),
     ) || fallbackAmount(text)
@@ -442,13 +445,14 @@ function parseReceiptImage(text: string): ParsedExpenseDocument | null {
   const itemLines = lines.filter((line) => {
     const lowered = line.toLowerCase()
     return (
-      !/(sia|swedbank|visa|mastercard|čeks|kopa|summa|pvn|karte|paldies|reģ|pvn nr|adrese|tālrunis|tel\.|eka|dok\.|kvīts|visa debit)/i.test(lowered) &&
+      !/(sia|swedbank|visa|mastercard|čeks|ceks|kopa|summa|pvn|karte|paldies|reģ|pvn nr|adrese|tālrunis|tel\.|eka|dok\.|kvīts|visa debit)/i.test(lowered) &&
       /[a-zāčēģīķļņōŗšūž]/i.test(line)
     )
   })
   const description = itemLines.slice(0, 3).join(', ') || 'Importēts čeks'
 
-  if (!vendor || !date || amount <= 0) return null
+  // Allow missing vendor — a receipt with date + amount is still useful as a draft
+  if (!date || amount <= 0) return null
 
   return {
     amount,
