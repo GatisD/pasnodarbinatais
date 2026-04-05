@@ -177,3 +177,21 @@ Kad lietotājs vēlas redzēt rēķinus:
 1. `get_financial_summary` (year, month)
 2. Parādī: ienākumi, izdevumi, peļņa, aplēstie nodokļi
 3. Atgādini par ceturkšņa VID maksājumiem ja aktuāli
+
+---
+
+### 10. Rēķina dublēšana citam mēnesim
+
+Kad lietotājs vēlas "tādu pašu rēķinu kā [mēnesis], tikai uz [jauns mēnesis]":
+
+1. `list_invoices` (client_id, year + month) → atrodi iepriekšējo rēķinu
+2. `get_invoice` → iegūsti pilnas pozīcijas un datus
+3. Sagatavo jaunās pozīcijas — **nomainī mēneša nosaukumu** aprakstos (piem. "Aprīlis" → "Maijs", "Aprīlī" → "Maijā")
+4. `create_invoice` ar:
+   - Jauniem datumiem (issue_date un due_date jaunajā mēnesī)
+   - Atjauninātiem pozīciju aprakstiem
+   - Tādām pašām cenām un daudzumiem
+5. Parādī kopsavilkumu un jautā vai nosūtīt
+
+**Datumu loģika:** ja "uz Maiju" — issue_date: pirmā darba diena Maijā, due_date: 30 dienas vēlāk. Ja nav precizēts — izmanto 1. datumu.
+
