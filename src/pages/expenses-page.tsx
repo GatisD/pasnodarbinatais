@@ -327,7 +327,7 @@ export function ExpensesPage() {
           onCancel={() => setConfirmDeleteExpense(null)}
         />
       ) : null}
-      <section className="pipboy-panel rounded-[28px] p-4">
+      <section className="pipboy-panel min-w-0 rounded-[28px] p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h3 className="pipboy-title text-2xl font-semibold">Izdevumi</h3>
@@ -354,7 +354,7 @@ export function ExpensesPage() {
           <Stat title="Gada kopējais" value={formatCurrency(summary.yearTotal)} compact />
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-[200px_240px_1fr]">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[200px_240px_1fr]">
           <Field title="Mēnesis"><PickerInput type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="py-2 text-sm" /></Field>
           <Field title="Kategorija">
             <div className="relative">
@@ -365,7 +365,7 @@ export function ExpensesPage() {
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" />
             </div>
           </Field>
-          <div className="col-span-2 xl:col-span-1">
+          <div className="sm:col-span-2 xl:col-span-1">
             <Field title="Meklēšana">
               <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-2 pl-10 pr-4 text-sm" placeholder="Meklē pēc piegādātāja vai apraksta" /></div>
             </Field>

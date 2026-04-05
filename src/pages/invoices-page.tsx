@@ -703,7 +703,7 @@ export function InvoicesPage() {
           onCancel={() => setConfirmDeleteInvoice(null)}
         />
       ) : null}
-      <section className="pipboy-panel rounded-[28px] p-4">
+      <section className="pipboy-panel min-w-0 rounded-[28px] p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h3 className="pipboy-title text-2xl font-semibold">Rēķini</h3>
@@ -728,10 +728,10 @@ export function InvoicesPage() {
           <Stat title="Kavējas" value={String(summary.late)} compact />
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-[200px_200px_1fr]">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[200px_200px_1fr]">
           <Field title="Mēnesis"><PickerInput type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} className="py-2 text-sm" /></Field>
           <Field title="Statuss"><div className="relative"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | Status)} className="pipboy-input w-full appearance-none px-3 py-2 pr-10 text-sm"><option value="all">Visi statusi</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /></div></Field>
-          <div className="col-span-2 xl:col-span-1"><Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-2 pl-10 pr-4 text-sm" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field></div>
+          <div className="sm:col-span-2 xl:col-span-1"><Field title="Meklēšana"><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pipboy-subtle" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="pipboy-input py-2 pl-10 pr-4 text-sm" placeholder="Meklē pēc klienta, numura vai piezīmēm" /></div></Field></div>
         </div>
         {feedback ? <div className="pipboy-surface mt-3 px-4 py-2.5 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
       </section>
