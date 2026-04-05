@@ -65,6 +65,32 @@ body::after {
   z-index: 39;
 }
 
+/* Pip-Boy custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 255, 65, 0.04);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 65, 0.3);
+  border-radius: 3px;
+  border: 1px solid rgba(0, 255, 65, 0.12);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 65, 0.55);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 65, 0.3) rgba(0, 255, 65, 0.04);
+}
+
 * {
   box-sizing: border-box;
 }
