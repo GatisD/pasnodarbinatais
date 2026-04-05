@@ -351,19 +351,93 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
 
   const issuerName = profile.full_name ?? 'Pašnodarbinātais';
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'invoice@resend.dev';
-  const bodyText = customMessage
-    ?? `Labdien,\n\nLūdzu apmaksāt pievienoto rēķinu ${invoice.invoice_number} līdz ${invoice.due_date}.\n\nAr cieņu,\n${issuerName}`;
 
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) throw new Error('Nav RESEND_API_KEY vides mainīgais.');
+
+  // Pakalpojumu saraksts e-pastam
+  const itemsList = (invoice.invoice_items ?? [])
+    .map((it: { description: string; quantity: number; unit: string; total: number }) =>
+      `${it.description} — ${it.quantity} ${it.unit} × ${it.total.toFixed(2)} EUR`)
+    .join('\n');
+
+  const dueDate = new Date(invoice.due_date).toLocaleDateString('lv-LV', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  const plainText = customMessage ?? `Labdien,\n\nLūdzu apmaksāt pievienoto rēķinu ${invoice.invoice_number}.\n\nPakalpojumi:\n${itemsList}\n\nKopā apmaksai: ${invoice.total.toFixed(2)} EUR\nApmaksas termiņš: ${dueDate}\n\nNorēķinu rekvizīti:\nSaņēmējs: ${issuerName}\nIBAN: ${profile.bank_iban ?? '—'}\nBanka: ${profile.bank_name ?? '—'}\n\nAr cieņu,\n${issuerName}`;
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html lang="lv">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
+        <!-- Header -->
+        <tr><td style="background:#1e3a5f;padding:28px 40px;">
+          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:bold;">Rēķins ${invoice.invoice_number}</p>
+          <p style="margin:4px 0 0;color:#93c5fd;font-size:13px;">Apmaksas termiņš: ${dueDate}</p>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;">Labdien,</p>
+          <p style="margin:0 0 24px;color:#374151;font-size:15px;">
+            ${customMessage ? customMessage.replace(/\n/g, '<br>') : `Lūdzu apmaksāt pievienoto rēķinu <strong>${invoice.invoice_number}</strong> līdz <strong>${dueDate}</strong>.`}
+          </p>
+          <!-- Items table -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px;">
+            <tr style="background:#f9fafb;">
+              <td style="padding:10px 12px;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Pakalpojums</td>
+              <td style="padding:10px 12px;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:right;">Daudzums</td>
+              <td style="padding:10px 12px;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:right;">Summa</td>
+            </tr>
+            ${(invoice.invoice_items ?? []).map((it: { description: string; quantity: number; unit: string; total: number }) => `
+            <tr>
+              <td style="padding:10px 12px;font-size:14px;color:#111827;border-bottom:1px solid #e5e7eb;">${it.description}</td>
+              <td style="padding:10px 12px;font-size:14px;color:#374151;border-bottom:1px solid #e5e7eb;text-align:right;">${it.quantity} ${it.unit}</td>
+              <td style="padding:10px 12px;font-size:14px;color:#111827;border-bottom:1px solid #e5e7eb;text-align:right;">${it.total.toFixed(2)} EUR</td>
+            </tr>`).join('')}
+            <tr style="background:#f0fdf4;">
+              <td colspan="2" style="padding:12px;font-size:14px;font-weight:bold;color:#111827;">Kopā apmaksai</td>
+              <td style="padding:12px;font-size:16px;font-weight:bold;color:#166534;text-align:right;">${invoice.total.toFixed(2)} EUR</td>
+            </tr>
+          </table>
+          <!-- Bank details -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:6px;padding:16px;margin-bottom:24px;">
+            <tr><td colspan="2" style="padding-bottom:10px;font-size:11px;font-weight:bold;color:#6b7280;letter-spacing:0.05em;">NORĒĶINU REKVIZĪTI</td></tr>
+            <tr>
+              <td style="padding:3px 0;font-size:13px;color:#2563eb;width:160px;">Saņēmējs</td>
+              <td style="padding:3px 0;font-size:13px;color:#111827;">${issuerName}</td>
+            </tr>
+            ${profile.bank_iban ? `<tr>
+              <td style="padding:3px 0;font-size:13px;color:#2563eb;">IBAN</td>
+              <td style="padding:3px 0;font-size:13px;color:#111827;">${profile.bank_iban}</td>
+            </tr>` : ''}
+            ${profile.bank_name ? `<tr>
+              <td style="padding:3px 0;font-size:13px;color:#2563eb;">Banka</td>
+              <td style="padding:3px 0;font-size:13px;color:#111827;">${profile.bank_name}</td>
+            </tr>` : ''}
+          </table>
+          <p style="margin:0;color:#6b7280;font-size:13px;">Ar cieņu,<br><strong style="color:#111827;">${issuerName}</strong></p>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;">
+          <p style="margin:0;color:#9ca3af;font-size:11px;">Rēķins sagatavots lietotnē Pašnodarbinātā uzskaite · PDF pielikumā</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 
   const resend = new Resend(resendKey);
   const { error: mailError } = await resend.emails.send({
     from: `${issuerName} <${fromEmail}>`,
     to: invoice.clients.email,
     reply_to: profile.email ?? undefined,
-    subject: `Rēķins ${invoice.invoice_number}`,
-    text: bodyText,
+    subject: `Rēķins ${invoice.invoice_number} — apmaksas termiņš ${dueDate}`,
+    text: plainText,
+    html: htmlBody,
     attachments: [{
       filename: `${invoice.invoice_number}.pdf`,
       content: pdfBuffer,

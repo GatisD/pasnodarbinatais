@@ -43,12 +43,63 @@ export interface InvoicePdfData {
 }
 
 function eur(amount: number): string {
-  return amount.toFixed(2) + ' EUR';
+  return amount.toFixed(2) + ' €';
 }
 
 function fmtDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('lv-LV', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Summa vārdiem latviešu valodā
+function amountInWords(amount: number): string {
+  const euros = Math.floor(amount);
+  const cents = Math.round((amount - euros) * 100);
+
+  const ones = ['', 'viens', 'divi', 'trīs', 'četri', 'pieci', 'seši', 'septiņi', 'astoņi', 'deviņi'];
+  const teens = ['desmit', 'vienpadsmit', 'divpadsmit', 'trīspadsmit', 'četrpadsmit', 'piecpadsmit',
+    'sešpadsmit', 'septiņpadsmit', 'astoņpadsmit', 'deviņpadsmit'];
+  const tens = ['', 'desmit', 'divdesmit', 'trīsdesmit', 'četrdesmit', 'piecdesmit',
+    'sešdesmit', 'septiņdesmit', 'astoņdesmit', 'deviņdesmit'];
+  const hundreds = ['', 'simts', 'divi simti', 'trīs simti', 'četri simti', 'pieci simti',
+    'seši simti', 'septiņi simti', 'astoņi simti', 'deviņi simti'];
+
+  function threeDigits(n: number): string {
+    if (n === 0) return '';
+    const h = Math.floor(n / 100);
+    const remainder = n % 100;
+    const t = Math.floor(remainder / 10);
+    const o = remainder % 10;
+    let result = '';
+    if (h > 0) result += hundreds[h] + ' ';
+    if (remainder >= 10 && remainder < 20) {
+      result += teens[remainder - 10];
+    } else {
+      if (t > 0) result += tens[t] + ' ';
+      if (o > 0) result += ones[o];
+    }
+    return result.trim();
+  }
+
+  function numberToWords(n: number): string {
+    if (n === 0) return 'nulle';
+    let result = '';
+    const thousands = Math.floor(n / 1000);
+    const remainder = n % 1000;
+    if (thousands > 0) {
+      if (thousands === 1) result += 'tūkstotis ';
+      else result += threeDigits(thousands) + ' tūkstoši ';
+    }
+    if (remainder > 0) result += threeDigits(remainder);
+    return result.trim();
+  }
+
+  const euroWord = euros === 1 ? 'eiro' : 'eiro';
+  const centWord = cents === 1 ? 'cents' : 'centi';
+  let result = numberToWords(euros) + ' ' + euroWord;
+  if (cents > 0) result += ' un ' + numberToWords(cents) + ' ' + centWord;
+  // Capitalize first letter
+  return result.charAt(0).toUpperCase() + result.slice(1);
 }
 
 export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
@@ -63,126 +114,158 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
     doc.registerFont('NotoSans', FONT_PATH);
     doc.font('NotoSans');
 
-    const GREEN = '#1a5c2a';
-    const GRAY = '#555555';
-    const LIGHT = '#f5f5f5';
-    const pageWidth = doc.page.width - 100; // margins
+    const BLUE = '#2563EB';
+    const DARK = '#111827';
+    const GRAY = '#6B7280';
+    const LIGHT_GRAY = '#F9FAFB';
+    const BORDER = '#E5E7EB';
+    const pageWidth = doc.page.width - 100;
+    const rightCol = 370;
 
-    // ── Header ──────────────────────────────────────────────────────────────
-    doc.fontSize(22).fillColor(GREEN).text('RĒĶINS', 50, 50);
-    doc.fontSize(14).fillColor('#000000').text(data.invoice_number, 50, 78);
+    // ── Header: "Rēķins" + info ──────────────────────────────────────────────
+    doc.fontSize(28).fillColor(DARK).text('Rēķins', 50, 50);
 
     doc.fontSize(9).fillColor(GRAY);
-    doc.text(`Datums: ${fmtDate(data.issue_date)}`, 50, 110);
-    doc.text(`Apmaksas termiņš: ${fmtDate(data.due_date)}`, 50, 124);
+    if (data.profile.person_code) {
+      doc.text(`Reģistrācijas numurs: ${data.profile.person_code}`, 50, 86);
+    }
+    if (data.profile.email) {
+      doc.text(`E-pasts: ${data.profile.email}`, 50, 98);
+    }
 
-    // ── Issuer (right column) ────────────────────────────────────────────────
-    const rightX = 320;
-    doc.fontSize(9).fillColor(GRAY).text('IZDEVĒJS', rightX, 50);
-    doc.fontSize(10).fillColor('#000000');
-    doc.text(data.profile.full_name ?? '—', rightX, 64);
-    if (data.profile.person_code) doc.text(`Personas kods: ${data.profile.person_code}`, rightX);
-    if (data.profile.address) doc.text(data.profile.address, rightX);
-    if (data.profile.phone) doc.text(`Tel: ${data.profile.phone}`, rightX);
-    if (data.profile.email) doc.text(data.profile.email, rightX);
+    // Right: invoice meta
+    const metaX = rightCol;
+    const metaLabels = ['Rēķina numurs', 'Rēķina datums', 'Maksājuma termiņš'];
+    const metaValues = [data.invoice_number, fmtDate(data.issue_date), fmtDate(data.due_date)];
+    metaLabels.forEach((label, i) => {
+      const y = 50 + i * 18;
+      doc.fontSize(9).fillColor(BLUE).text(label, metaX, y, { width: 140 });
+      doc.fillColor(DARK).text(metaValues[i], metaX + 145, y, { width: 110, align: 'right' });
+    });
 
-    // ── Client ───────────────────────────────────────────────────────────────
-    const clientY = 165;
-    doc.fontSize(9).fillColor(GRAY).text('SAŅĒMĒJS', 50, clientY);
-    doc.fontSize(10).fillColor('#000000');
-    doc.text(data.client.name, 50, clientY + 14);
-    if (data.client.reg_number) doc.text(`Reģ. nr.: ${data.client.reg_number}`, 50);
+    // Horizontal divider
+    const divY = 118;
+    doc.moveTo(50, divY).lineTo(50 + pageWidth, divY).strokeColor(BORDER).lineWidth(1).stroke();
+
+    // ── Two columns: KLIENTS | IZRAKSTĪTĀJS ─────────────────────────────────
+    const colY = 130;
+    const midX = 300;
+
+    doc.fontSize(8).fillColor(GRAY).text('KLIENTS', 50, colY);
+    doc.fontSize(10).fillColor(DARK).text(data.client.name, 50, colY + 14);
+    doc.fontSize(9).fillColor(GRAY);
+    if (data.client.reg_number) doc.fillColor(GRAY).text(`Reģistrācijas numurs: ${data.client.reg_number}`, 50);
     if (data.client.address) doc.text(data.client.address, 50);
-    if (data.client.email) doc.text(data.client.email, 50);
+    if (data.client.email) doc.text(`E-pasts: ${data.client.email}`, 50);
 
-    // ── Items table ──────────────────────────────────────────────────────────
-    const tableTop = 270;
-    const colWidths = [240, 50, 60, 80, 80];
-    const cols = [50, 290, 340, 400, 480];
-
-    // Table header
-    doc.rect(50, tableTop, pageWidth, 20).fill(GREEN);
-    doc.fontSize(9).fillColor('#ffffff');
-    const headers = ['Apraksts', 'Skaits', 'Vienība', 'Cena', 'Summa'];
-    headers.forEach((h, i) => {
-      const align = i === 0 ? 'left' : 'right';
-      const w = colWidths[i];
-      doc.text(h, cols[i], tableTop + 5, { width: w, align });
-    });
-
-    // Table rows
-    let rowY = tableTop + 24;
-    data.items.forEach((item, idx) => {
-      if (idx % 2 === 0) {
-        doc.rect(50, rowY - 2, pageWidth, 18).fill(LIGHT);
-      }
-      doc.fillColor('#000000').fontSize(9);
-      doc.text(item.description, cols[0], rowY, { width: colWidths[0], align: 'left' });
-      doc.text(item.quantity.toString(), cols[1], rowY, { width: colWidths[1], align: 'right' });
-      doc.text(item.unit, cols[2], rowY, { width: colWidths[2], align: 'right' });
-      doc.text(eur(item.unit_price), cols[3], rowY, { width: colWidths[3], align: 'right' });
-      doc.text(eur(item.total), cols[4], rowY, { width: colWidths[4], align: 'right' });
-      rowY += 20;
-    });
-
-    // Divider line
-    rowY += 6;
-    doc.moveTo(50, rowY).lineTo(50 + pageWidth, rowY).strokeColor(GREEN).lineWidth(1).stroke();
-    rowY += 10;
-
-    // Totals
-    const totalsX = 380;
+    doc.fontSize(8).fillColor(GRAY).text('IZRAKSTĪTĀJS', midX, colY);
+    doc.fontSize(10).fillColor(DARK).text(data.profile.full_name ?? '—', midX, colY + 14);
     doc.fontSize(9).fillColor(GRAY);
+    if (data.profile.person_code) doc.text(`Reģistrācijas numurs: ${data.profile.person_code}`, midX);
+    if (data.profile.address) doc.text(`Adrese: ${data.profile.address}`, midX);
+    if (data.profile.email) doc.text(`E-pasts: ${data.profile.email}`, midX);
+    if (data.profile.phone) doc.text(`Telefons: ${data.profile.phone}`, midX);
 
-    doc.text('Summa bez PVN:', 50, rowY, { width: totalsX - 60, align: 'right' });
-    doc.fillColor('#000000').text(eur(data.subtotal), totalsX, rowY, { width: 120, align: 'right' });
+    // ── Pakalpojumi ───────────────────────────────────────────────────────────
+    const tableTop = 240;
+    doc.fontSize(12).fillColor(DARK).text('Pakalpojumi', 50, tableTop);
+
+    const tblStart = tableTop + 20;
+    const colW = [220, 60, 80, 80, 80];
+    const colX = [50, 270, 330, 410, 470];
+
+    // Table header row
+    doc.rect(50, tblStart, pageWidth, 22).fill(LIGHT_GRAY).stroke();
+    doc.moveTo(50, tblStart).lineTo(50 + pageWidth, tblStart).strokeColor(BORDER).lineWidth(0.5).stroke();
+    doc.moveTo(50, tblStart + 22).lineTo(50 + pageWidth, tblStart + 22).strokeColor(BORDER).lineWidth(0.5).stroke();
+
+    const hdrLabels = ['Nosaukums', 'Daudzums', 'Mērvienība', 'Cena', 'Summa, euro'];
+    doc.fontSize(8).fillColor(GRAY);
+    hdrLabels.forEach((h, i) => {
+      const align = i === 0 ? 'left' : 'right';
+      doc.text(h, colX[i], tblStart + 7, { width: colW[i], align });
+    });
+
+    // Rows
+    let rowY = tblStart + 26;
+    data.items.forEach((item) => {
+      doc.moveTo(50, rowY + 18).lineTo(50 + pageWidth, rowY + 18).strokeColor(BORDER).lineWidth(0.5).stroke();
+      doc.fontSize(9).fillColor(DARK);
+      doc.text(item.description, colX[0], rowY, { width: colW[0], align: 'left' });
+      doc.text(item.quantity.toFixed(2), colX[1], rowY, { width: colW[1], align: 'right' });
+      doc.text(item.unit, colX[2], rowY, { width: colW[2], align: 'right' });
+      doc.text(item.unit_price.toFixed(2) + ' €', colX[3], rowY, { width: colW[3], align: 'right' });
+      doc.text(item.total.toFixed(2) + ' €', colX[4], rowY, { width: colW[4], align: 'right' });
+      rowY += 22;
+    });
+
+    // Bottom border of table
+    doc.moveTo(50, rowY).lineTo(50 + pageWidth, rowY).strokeColor(BORDER).lineWidth(1).stroke();
     rowY += 16;
 
-    if (data.profile.is_vat_payer || data.vat_rate > 0) {
-      const vatPct = (data.vat_rate * 100).toFixed(0);
-      doc.fillColor(GRAY).text(`PVN ${vatPct}%:`, 50, rowY, { width: totalsX - 60, align: 'right' });
-      doc.fillColor('#000000').text(eur(data.vat_amount), totalsX, rowY, { width: 120, align: 'right' });
-      rowY += 16;
-    }
+    // ── Summa vārdiem + Totals ───────────────────────────────────────────────
+    const words = amountInWords(data.total);
+    doc.fontSize(8).fillColor(GRAY).text('Summa vārdiem', 50, rowY);
+    doc.fontSize(9).fillColor(DARK).text(words, 50, rowY + 12, { width: 250 });
 
-    // Total box
-    doc.rect(totalsX - 10, rowY - 4, 140, 22).fill(GREEN);
-    doc.fillColor('#ffffff').fontSize(11);
-    doc.text('KOPĀ:', 50, rowY, { width: totalsX - 60, align: 'right' });
-    doc.text(eur(data.total), totalsX, rowY, { width: 120, align: 'right' });
-    rowY += 36;
-    doc.fillColor('#000000');
+    const totalsX = 360;
+    const totalsLabelW = 100;
+    const totalsValW = 90;
 
-    // ── Bank details ─────────────────────────────────────────────────────────
+    doc.fontSize(9);
+    // Starpsumma
+    doc.fillColor(GRAY).text('Starpsumma', totalsX, rowY, { width: totalsLabelW });
+    doc.fillColor(DARK).text(eur(data.subtotal), totalsX + totalsLabelW, rowY, { width: totalsValW, align: 'right' });
+    rowY += 16;
+
+    // PVN
+    const vatPct = data.profile.is_vat_payer ? (data.vat_rate * 100).toFixed(0) : '0';
+    doc.fillColor(GRAY).text(`PVN (${vatPct}%)`, totalsX, rowY, { width: totalsLabelW });
+    doc.fillColor(DARK).text(eur(data.vat_amount), totalsX + totalsLabelW, rowY, { width: totalsValW, align: 'right' });
+    rowY += 20;
+
+    // Kopā
+    doc.fontSize(10).fillColor(DARK);
+    doc.text('Summa apmaksai, euro', totalsX, rowY, { width: totalsLabelW + 20 });
+    doc.fontSize(12).text(eur(data.total), totalsX + totalsLabelW + 20, rowY - 2, { width: totalsValW - 20, align: 'right' });
+    rowY += 30;
+
+    // ── NORĒĶINU REKVIZĪTI ───────────────────────────────────────────────────
     if (data.profile.bank_name || data.profile.bank_iban) {
-      doc.fontSize(9).fillColor(GRAY).text('BANKAS REKVIZĪTI', 50, rowY);
-      rowY += 13;
-      doc.fillColor('#000000').fontSize(9);
-      if (data.profile.bank_name) {
-        doc.text(`Banka: ${data.profile.bank_name}`, 50, rowY);
-        rowY += 13;
-      }
-      if (data.profile.bank_iban) {
-        doc.text(`IBAN: ${data.profile.bank_iban}`, 50, rowY);
-        rowY += 13;
-      }
-      rowY += 8;
+      doc.fontSize(8).fillColor(GRAY).text('NORĒĶINU REKVIZĪTI', 50, rowY);
+      rowY += 14;
+
+      const rekviziti: [string, string][] = [
+        ['Piegādātājs', data.profile.full_name ?? '—'],
+        ['Reģistrācijas numurs', data.profile.person_code ?? '—'],
+        ['Adrese', data.profile.address ?? '—'],
+        ['Bankas nosaukums', data.profile.bank_name ?? '—'],
+        ['Konta numurs', data.profile.bank_iban ?? '—'],
+      ];
+
+      rekviziti.forEach(([label, value]) => {
+        doc.fontSize(9).fillColor(BLUE).text(label, 50, rowY, { width: 150 });
+        doc.fillColor(DARK).text(value, 210, rowY, { width: 340 });
+        rowY += 14;
+      });
+      rowY += 6;
     }
+
+    // ── Legal text ───────────────────────────────────────────────────────────
+    doc.fontSize(8).fillColor(GRAY)
+      .text('Dokuments ir sagatavots elektroniski un ir derīgs bez paraksta.', 50, rowY, { width: pageWidth });
 
     // ── Notes ────────────────────────────────────────────────────────────────
     if (data.notes) {
-      doc.fontSize(9).fillColor(GRAY).text('PIEZĪMES', 50, rowY);
-      rowY += 13;
-      doc.fillColor('#000000').text(data.notes, 50, rowY, { width: pageWidth });
+      rowY += 20;
+      doc.fontSize(9).fillColor(DARK).text(data.notes, 50, rowY, { width: pageWidth });
     }
 
     // ── Footer ───────────────────────────────────────────────────────────────
     const pageH = doc.page.height;
+    doc.moveTo(50, pageH - 55).lineTo(50 + pageWidth, pageH - 55).strokeColor(BORDER).lineWidth(0.5).stroke();
     doc.fontSize(8).fillColor(GRAY)
-      .text(
-        `Rēķins ${data.invoice_number} | Izveidots: ${fmtDate(data.issue_date)}`,
-        50, pageH - 40, { width: pageWidth, align: 'center' }
-      );
+      .text('Rēķins sagatavots lietotnē Pašnodarbinātā uzskaite', 50, pageH - 42, { width: pageWidth, align: 'right' });
 
     doc.end();
   });
