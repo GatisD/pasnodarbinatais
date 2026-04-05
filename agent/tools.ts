@@ -486,6 +486,7 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
   const { error: mailError } = await resend.emails.send({
     from: `${issuerName} <${fromEmail}>`,
     to: invoice.clients.email,
+    cc: profile.email ? [profile.email] : undefined,
     reply_to: profile.email ?? undefined,
     subject: `Rēķins ${invoice.invoice_number} — apmaksas termiņš ${dueDate}`,
     text: plainText,
