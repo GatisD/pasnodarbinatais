@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Modal } from '@/components/modal'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 
@@ -42,6 +43,7 @@ export function ClientsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
 
   useEffect(() => {
     void loadClients()
@@ -100,9 +102,9 @@ export function ClientsPage() {
       return
     }
 
-    setFeedback(editingId ? 'Klients atjaunināts.' : 'Klients pievienots.')
     setForm(emptyForm)
     setEditingId(null)
+    setShowForm(false)
     setIsSaving(false)
     await loadClients()
   }
@@ -138,15 +140,18 @@ export function ClientsPage() {
       name: client.name,
       reg_number: client.reg_number ?? '',
     })
+    setShowForm(true)
   }
 
   function handleCancelEdit() {
     setEditingId(null)
     setForm(emptyForm)
+    setShowForm(false)
+    setFeedback(null)
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[460px_1fr]">
+    <div className="grid gap-6">
       {confirmDeleteId ? (
         <ConfirmDialog
           title="Dzēst klientu?"
@@ -155,73 +160,57 @@ export function ClientsPage() {
           onCancel={() => setConfirmDeleteId(null)}
         />
       ) : null}
-      <section className="pipboy-panel rounded-[28px] p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="pipboy-title text-2xl font-semibold">
-              {editingId ? 'Rediģēt klientu' : 'Pievienot klientu'}
-            </h3>
-            <p className="pipboy-subtle mt-2 text-base leading-8">
-              Saglabā klientu rekvizītus, lai rēķina izveide vēlāk būtu ātra un bez
-              atkārtotas manuālas rakstīšanas.
-            </p>
-          </div>
-          <div className="rounded-full border border-[rgba(0,255,70,0.18)] bg-[rgba(0,255,65,0.08)] p-3 text-[#7cff7c]">
-            <Plus className="h-5 w-5" />
-          </div>
-        </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <ClientField
-            label="Nosaukums"
-            value={form.name}
-            onChange={(value) => setForm((current) => ({ ...current, name: value }))}
-            required
-          />
-          <ClientField
-            label="Reģistrācijas numurs / personas kods"
-            value={form.reg_number}
-            onChange={(value) => setForm((current) => ({ ...current, reg_number: value }))}
-          />
-          <ClientField
-            label="E-pasts"
-            type="email"
-            value={form.email}
-            onChange={(value) => setForm((current) => ({ ...current, email: value }))}
-          />
-          <ClientField
-            label="IBAN"
-            value={form.bank_iban}
-            onChange={(value) => setForm((current) => ({ ...current, bank_iban: value }))}
-          />
-          <ClientField
-            label="Adrese"
-            value={form.address}
-            onChange={(value) => setForm((current) => ({ ...current, address: value }))}
-          />
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="pipboy-button pipboy-button-primary px-5 py-3 font-medium disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSaving ? 'Saglabājam...' : editingId ? 'Saglabāt izmaiņas' : 'Pievienot klientu'}
-            </button>
-            {editingId ? (
+      {showForm ? (
+        <Modal
+          title={editingId ? 'Rediģēt klientu' : 'Pievienot klientu'}
+          onClose={handleCancelEdit}
+          size="md"
+        >
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <ClientField
+              label="Nosaukums"
+              value={form.name}
+              onChange={(value) => setForm((current) => ({ ...current, name: value }))}
+              required
+            />
+            <ClientField
+              label="Reģistrācijas numurs / personas kods"
+              value={form.reg_number}
+              onChange={(value) => setForm((current) => ({ ...current, reg_number: value }))}
+            />
+            <ClientField
+              label="E-pasts"
+              type="email"
+              value={form.email}
+              onChange={(value) => setForm((current) => ({ ...current, email: value }))}
+            />
+            <ClientField
+              label="IBAN"
+              value={form.bank_iban}
+              onChange={(value) => setForm((current) => ({ ...current, bank_iban: value }))}
+            />
+            <ClientField
+              label="Adrese"
+              value={form.address}
+              onChange={(value) => setForm((current) => ({ ...current, address: value }))}
+            />
+            {feedback ? <div className="pipboy-surface px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
+            <div className="flex flex-wrap gap-3 pt-2">
               <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="pipboy-button px-5 py-3 font-medium"
+                type="submit"
+                disabled={isSaving}
+                className="pipboy-button pipboy-button-primary px-5 py-3 font-medium disabled:cursor-not-allowed disabled:opacity-60"
               >
+                {isSaving ? 'Saglabājam...' : editingId ? 'Saglabāt izmaiņas' : 'Pievienot klientu'}
+              </button>
+              <button type="button" onClick={handleCancelEdit} className="pipboy-button px-5 py-3 font-medium">
                 Atcelt
               </button>
-            ) : null}
-          </div>
-        </form>
-
-        {feedback ? <div className="pipboy-surface mt-4 px-4 py-3 text-sm leading-6 text-[rgba(214,255,220,0.9)]">{feedback}</div> : null}
-      </section>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
 
       <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex items-start justify-between gap-4">
@@ -231,9 +220,14 @@ export function ClientsPage() {
               Šis saraksts vēlāk kalpos kā pamats rēķinu formai un ātrai klientu atlasei.
             </p>
           </div>
-          <div className="rounded-full border border-[rgba(0,255,70,0.18)] bg-[rgba(0,255,65,0.08)] p-3 text-[#7cff7c]">
-            <Users className="h-5 w-5" />
-          </div>
+          <button
+            type="button"
+            onClick={() => { setEditingId(null); setForm(emptyForm); setFeedback(null); setShowForm(true) }}
+            className="pipboy-button pipboy-button-primary shrink-0 px-4 py-2.5 text-sm font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            Pievienot klientu
+          </button>
         </div>
 
         {!isLoading && clients.length > 0 ? (

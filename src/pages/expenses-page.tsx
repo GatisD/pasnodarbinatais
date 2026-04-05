@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Copy, ExternalLink, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ChevronDown, Copy, ExternalLink, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Modal } from '@/components/modal'
 import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { type ExpenseCategory, parseExpenseDocument } from '@/lib/expense-document-import'
@@ -338,9 +339,8 @@ export function ExpensesPage() {
               {importingDocument ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
               {importingDocument ? 'Importējam...' : 'Importēt'}
             </button>
-            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-3 py-2 text-xs font-medium">
-              {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {showComposer ? 'Aizvērt' : 'Jauns izdevums'}
+            <button type="button" onClick={() => { resetComposer(); setShowComposer(true) }} className="pipboy-button pipboy-button-primary px-3 py-2 text-xs font-medium">
+              <Plus className="h-4 w-4" />Jauns izdevums
             </button>
           </div>
         </div>
@@ -375,28 +375,15 @@ export function ExpensesPage() {
       </section>
 
       {showComposer ? (
-        <section className="pipboy-panel rounded-[28px] p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h4 className="pipboy-title text-2xl font-semibold">{editingExpenseId ? 'Rediģēt izdevumu' : 'Jauns izdevums'}</h4>
-              <p className="pipboy-subtle mt-2 text-sm leading-7">
-                Saglabā summu, kategoriju, piegādātāju un, ja vajag, pievieno čeka vai rēķina failu.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                resetComposer()
-                setShowComposer(false)
-              }}
-              className="pipboy-button h-11 w-11 rounded-full"
-              aria-label="Aizvērt"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
+        <Modal
+          title={editingExpenseId ? 'Rediģēt izdevumu' : 'Jauns izdevums'}
+          onClose={() => { resetComposer(); setShowComposer(false) }}
+          size="lg"
+        >
+          <p className="pipboy-subtle -mt-2 mb-6 text-sm leading-7">
+            Saglabā summu, kategoriju, piegādātāju un, ja vajag, pievieno čeka vai rēķina failu.
+          </p>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field title="Datums">
                 <PickerInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -458,7 +445,7 @@ export function ExpensesPage() {
               </button>
             </div>
           </form>
-        </section>
+        </Modal>
       ) : null}
 
       <section className="pipboy-panel rounded-[28px] p-3 md:p-4">

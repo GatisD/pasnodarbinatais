@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer'
-import { AlertTriangle, CircleCheck, CircleOff, Clock, ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Mail, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { AlertTriangle, CircleCheck, CircleOff, Clock, ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Mail, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Modal } from '@/components/modal'
 import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { InvoicePdfDocument, type InvoicePdfData } from '@/features/invoices/invoice-pdf'
@@ -714,8 +715,8 @@ export function InvoicesPage() {
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importingPdf} className="pipboy-button pipboy-button-ghost px-3 py-2 text-xs font-medium disabled:opacity-60">
               {importingPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}{importingPdf ? 'Importējam...' : 'Importēt'}
             </button>
-            <button type="button" onClick={() => { if (showComposer) resetComposer(); setShowComposer((current) => !current) }} className="pipboy-button pipboy-button-primary px-3 py-2 text-xs font-medium">
-              {showComposer ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{showComposer ? 'Aizvērt' : 'Jauns rēķins'}
+            <button type="button" onClick={() => { resetComposer(); setShowComposer(true) }} className="pipboy-button pipboy-button-primary px-3 py-2 text-xs font-medium">
+              <Plus className="h-4 w-4" />Jauns rēķins
             </button>
           </div>
         </div>
@@ -736,52 +737,48 @@ export function InvoicesPage() {
       </section>
 
       {showComposer ? (
-        <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <div className="pipboy-panel rounded-[28px] p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h4 className="pipboy-title text-2xl font-semibold">{editingInvoiceId ? 'Rediģēt rēķinu' : 'Jauns rēķins'}</h4>
-                <p className="pipboy-subtle mt-2 text-sm leading-7">Aizpildi klientu, rindas un summas. Ja vajag, uzreiz apskati PDF melnrakstu.</p>
-              </div>
-              <button type="button" onClick={() => { resetComposer(); setShowComposer(false) }} className="pipboy-button h-11 w-11 rounded-full" aria-label="Aizvērt"><X className="h-4 w-4" /></button>
-            </div>
-
-            <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field title="Rēķina numurs">
+        <Modal
+          title={editingInvoiceId ? 'Rediģēt rēķinu' : 'Jauns rēķins'}
+          onClose={() => { resetComposer(); setShowComposer(false) }}
+          size=”2xl”
+        >
+          <div className=”grid gap-6 xl:grid-cols-[1.1fr_0.9fr]”>
+            <form className=”space-y-6” onSubmit={handleSubmit}>
+              <div className=”grid gap-4 md:grid-cols-2”>
+                <Field title=”Rēķina numurs”>
                   <input
                     value={sourceInvoiceNumber ?? ''}
                     onChange={(event) => setSourceInvoiceNumber(event.target.value || null)}
-                    className="pipboy-input px-4 py-3"
-                    placeholder="Atstāj tukšu autoģenerācijai"
+                    className=”pipboy-input px-4 py-3”
+                    placeholder=”Atstāj tukšu autoģenerācijai”
                   />
                 </Field>
-                <Field title="Klients"><select value={clientId} onChange={(event) => setClientId(event.target.value)} className="pipboy-input px-4 py-3"><option value="">Izvēlies klientu</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
-                <Field title="PVN likme (%)"><input value={vatRate} onChange={(event) => setVatRate(event.target.value)} className="pipboy-input px-4 py-3" placeholder="0" /></Field>
-                <Field title="Izrakstīšanas datums"><PickerInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
-                <Field title="Apmaksas termiņš"><PickerInput type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
+                <Field title=”Klients”><select value={clientId} onChange={(event) => setClientId(event.target.value)} className=”pipboy-input px-4 py-3”><option value=””>Izvēlies klientu</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
+                <Field title=”PVN likme (%)”><input value={vatRate} onChange={(event) => setVatRate(event.target.value)} className=”pipboy-input px-4 py-3” placeholder=”0” /></Field>
+                <Field title=”Izrakstīšanas datums”><PickerInput type=”date” value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
+                <Field title=”Apmaksas termiņš”><PickerInput type=”date” value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between"><h5 className="pipboy-title text-lg font-semibold">Rēķina rindas</h5><button type="button" onClick={() => setItems((current) => [...current, emptyItem()])} className="pipboy-button px-4 py-2 text-sm"><Plus className="h-4 w-4" />Pievienot rindu</button></div>
-                {items.map((item, index) => <div key={index} className="pipboy-surface grid gap-3 p-4 md:grid-cols-[1.45fr_0.5fr_0.45fr_0.65fr_auto]"><input value={item.description} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="Pakalpojuma apraksts" /><input value={item.quantity} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, quantity: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="1" /><input value={item.unit} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="gab." /><input value={item.unit_price} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit_price: event.target.value } : row))} className="pipboy-input px-4 py-3" placeholder="0,00" /><button type="button" onClick={() => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index))} className="pipboy-button pipboy-button-danger px-4 py-3"><Trash2 className="h-4 w-4" /></button></div>)}
+              <div className=”space-y-4”>
+                <div className=”flex items-center justify-between”><h5 className=”pipboy-title text-lg font-semibold”>Rēķina rindas</h5><button type=”button” onClick={() => setItems((current) => [...current, emptyItem()])} className=”pipboy-button px-4 py-2 text-sm”><Plus className=”h-4 w-4” />Pievienot rindu</button></div>
+                {items.map((item, index) => <div key={index} className=”pipboy-surface grid gap-3 p-4 md:grid-cols-[1.45fr_0.5fr_0.45fr_0.65fr_auto]”><input value={item.description} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} className=”pipboy-input px-4 py-3” placeholder=”Pakalpojuma apraksts” /><input value={item.quantity} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, quantity: event.target.value } : row))} className=”pipboy-input px-4 py-3” placeholder=”1” /><input value={item.unit} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit: event.target.value } : row))} className=”pipboy-input px-4 py-3” placeholder=”gab.” /><input value={item.unit_price} onChange={(event) => setItems((current) => current.map((row, i) => i === index ? { ...row, unit_price: event.target.value } : row))} className=”pipboy-input px-4 py-3” placeholder=”0,00” /><button type=”button” onClick={() => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index))} className=”pipboy-button pipboy-button-danger px-4 py-3”><Trash2 className=”h-4 w-4” /></button></div>)}
               </div>
 
-              <Field title="Piezīmes"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="pipboy-input px-4 py-3" placeholder="Papildu piezīmes rēķinam" /></Field>
-              <div className="pipboy-surface grid gap-3 rounded-3xl p-5 text-base md:grid-cols-3"><Stat title="Starpsumma" value={formatCurrency(subtotal)} compact /><Stat title="PVN" value={formatCurrency(vatAmount)} compact /><Stat title="Kopā" value={formatCurrency(total)} compact accent /></div>
-              <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-                <button type="submit" disabled={isSaving} className="pipboy-button pipboy-button-primary px-5 py-3 font-medium">{isSaving ? 'Saglabājam...' : editingInvoiceId ? 'Saglabāt izmaiņas' : 'Saglabāt rēķinu'}</button>
-                <PDFDownloadLink document={<InvoicePdfDocument data={draftPdf} />} fileName={`${draftNumber}.pdf`} className="pipboy-button px-5 py-3 font-medium">{({ loading }) => <><Download className="h-4 w-4" />{loading ? 'Gatavojam PDF...' : 'Lejupielādēt melnrakstu'}</>}</PDFDownloadLink>
-                <button type="button" onClick={() => setShowPreview((current) => !current)} className="pipboy-button px-5 py-3 font-medium"><Eye className="h-4 w-4" />{showPreview ? 'Paslēpt preview' : 'Rādīt preview'}</button>
+              <Field title=”Piezīmes”><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className=”pipboy-input px-4 py-3” placeholder=”Papildu piezīmes rēķinam” /></Field>
+              <div className=”pipboy-surface grid gap-3 rounded-3xl p-5 text-base md:grid-cols-3”><Stat title=”Starpsumma” value={formatCurrency(subtotal)} compact /><Stat title=”PVN” value={formatCurrency(vatAmount)} compact /><Stat title=”Kopā” value={formatCurrency(total)} compact accent /></div>
+              <div className=”flex flex-wrap items-center gap-3”>
+                <button type=”submit” disabled={isSaving} className=”pipboy-button pipboy-button-primary px-5 py-3 font-medium”>{isSaving ? 'Saglabājam...' : editingInvoiceId ? 'Saglabāt izmaiņas' : 'Saglabāt rēķinu'}</button>
+                <PDFDownloadLink document={<InvoicePdfDocument data={draftPdf} />} fileName={`${draftNumber}.pdf`} className=”pipboy-button px-5 py-3 font-medium”>{({ loading }) => <><Download className=”h-4 w-4” />{loading ? 'Gatavojam PDF...' : 'Lejupielādēt melnrakstu'}</>}</PDFDownloadLink>
+                <button type=”button” onClick={() => setShowPreview((current) => !current)} className=”pipboy-button px-5 py-3 font-medium”><Eye className=”h-4 w-4” />{showPreview ? 'Paslēpt preview' : 'Rādīt preview'}</button>
               </div>
             </form>
-          </div>
 
-          <div className="pipboy-panel rounded-[28px] p-6">
-            <h4 className="pipboy-title text-2xl font-semibold">Melnraksta preview</h4>
-            {showPreview ? <div className="pipboy-surface mt-6 overflow-hidden"><PDFViewer width="100%" height={760} showToolbar><InvoicePdfDocument data={draftPdf} /></PDFViewer></div> : <div className="pipboy-empty mt-6 px-5 py-8 text-base leading-8">Preview ir paslēpts. Vari to ieslēgt ar pogu “Rādīt preview”.</div>}
+            <div className=”pipboy-surface rounded-[20px] p-4”>
+              <h5 className=”pipboy-title text-lg font-semibold”>Melnraksta preview</h5>
+              {showPreview ? <div className=”mt-4 overflow-hidden rounded-xl”><PDFViewer width=”100%” height={640} showToolbar><InvoicePdfDocument data={draftPdf} /></PDFViewer></div> : <div className=”pipboy-empty mt-4 px-5 py-8 text-sm leading-8”>Preview ir paslēpts. Vari to ieslēgt ar pogu “Rādīt preview”.</div>}
+            </div>
           </div>
-        </section>
+        </Modal>
       ) : null}
 
       <section className="pipboy-panel rounded-[28px] p-3 md:p-4">
