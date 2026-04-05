@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
@@ -39,6 +39,7 @@ export function ClientsPage() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     void loadClients()
@@ -229,6 +230,30 @@ export function ClientsPage() {
           </div>
         </div>
 
+        {!isLoading && clients.length > 0 ? (
+          <div className="mt-5 flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="pipboy-subtle pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="pipboy-input py-2 pl-10 pr-4 text-sm"
+                placeholder="Meklē pēc nosaukuma vai reģ. nr."
+              />
+            </div>
+            <span className="pipboy-subtle shrink-0 text-sm">
+              {(() => {
+                const n = clients.filter((c) =>
+                  search.trim()
+                    ? `${c.name} ${c.reg_number ?? ''}`.toLowerCase().includes(search.trim().toLowerCase())
+                    : true,
+                ).length
+                return `${n} ${n === 1 ? 'klients' : 'klienti'}`
+              })()}
+            </span>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <div className="mt-6 rounded-2xl border border-[rgba(0,255,70,0.14)] bg-[rgba(6,16,8,0.7)] px-4 py-6 text-sm text-[rgba(184,255,184,0.72)]">
             Ielādējam klientus...
@@ -239,46 +264,65 @@ export function ClientsPage() {
             rēķiniem.
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
-            {clients.map((client) => (
-              <article
-                key={client.id}
-                className="pipboy-surface rounded-3xl p-5"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <h4 className="pipboy-title text-lg font-semibold">{client.name}</h4>
-                    <p className="text-sm text-[rgba(184,255,184,0.82)]">
-                      {client.reg_number || 'Nav norādīts reģistrācijas numurs'}
+          <div className="mt-5 overflow-hidden rounded-[20px] border border-[rgba(0,255,70,0.12)]">
+            <div className="grid grid-cols-[1fr_140px_1fr_72px] gap-3 bg-[rgba(9,19,9,0.9)] px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-[rgba(184,255,184,0.6)]">
+              <span>Nosaukums</span>
+              <span>Reģ. nr.</span>
+              <span>E-pasts / IBAN</span>
+              <span className="text-right">Darbības</span>
+            </div>
+            <div className="max-h-[420px] divide-y divide-[rgba(0,255,70,0.08)] overflow-y-auto">
+              {clients
+                .filter((client) =>
+                  search.trim()
+                    ? `${client.name} ${client.reg_number ?? ''}`.toLowerCase().includes(search.trim().toLowerCase())
+                    : true,
+                )
+                .map((client) => (
+                  <article
+                    key={client.id}
+                    className="grid grid-cols-[1fr_140px_1fr_72px] items-center gap-3 px-4 py-2.5"
+                  >
+                    <p className="pipboy-title truncate text-sm font-semibold" title={client.name}>
+                      {client.name}
                     </p>
-                    <div className="grid gap-1 text-sm text-[rgba(184,255,184,0.66)]">
-                      <span>{client.email || 'Nav e-pasta'}</span>
-                      <span>{client.bank_iban || 'Nav IBAN'}</span>
-                      <span>{client.address || 'Nav adreses'}</span>
+                    <p className="pipboy-subtle truncate text-xs">
+                      {client.reg_number ?? '—'}
+                    </p>
+                    <div className="min-w-0">
+                      <p className="pipboy-subtle truncate text-xs">{client.email ?? '—'}</p>
+                      <p className="truncate text-xs text-[rgba(184,255,184,0.45)]">{client.bank_iban ?? '—'}</p>
                     </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(client)}
-                      className="pipboy-button px-4 py-2 text-sm"
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Rediģēt
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(client.id)}
-                      className="pipboy-button pipboy-button-danger px-4 py-2 text-sm"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Dzēst
-                    </button>
-                  </div>
+                    <div className="flex shrink-0 items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(client)}
+                        title="Rediģēt"
+                        className="pipboy-button h-8 w-8 rounded-full p-0"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(client.id)}
+                        title="Dzēst"
+                        className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              {clients.filter((client) =>
+                search.trim()
+                  ? `${client.name} ${client.reg_number ?? ''}`.toLowerCase().includes(search.trim().toLowerCase())
+                  : true,
+              ).length === 0 ? (
+                <div className="pipboy-empty mx-4 my-3 px-4 py-5 text-sm">
+                  Neviens klients neatbilst meklēšanai.
                 </div>
-              </article>
-            ))}
+              ) : null}
+            </div>
           </div>
         )}
       </section>
