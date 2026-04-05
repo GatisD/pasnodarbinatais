@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Copy, ExternalLink, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { type ExpenseCategory, parseExpenseDocument } from '@/lib/expense-document-import'
@@ -65,6 +66,7 @@ export function ExpensesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
+  const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<ExpenseRecord | null>(null)
   const [importingDocument, setImportingDocument] = useState(false)
   const [showComposer, setShowComposer] = useState(false)
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7))
@@ -252,9 +254,7 @@ export function ExpensesPage() {
 
   async function handleDelete(expense: ExpenseRecord) {
     if (!supabase) return
-    const confirmed = window.confirm(`Dzēst izdevumu ${formatCurrency(expense.amount)} apmērā?`)
-    if (!confirmed) return
-
+    setConfirmDeleteExpense(null)
     setDeletingExpenseId(expense.id)
     setFeedback(null)
     if (expense.receipt_path) await supabase.storage.from('expense-documents').remove([expense.receipt_path])
@@ -318,6 +318,14 @@ export function ExpensesPage() {
 
   return (
     <div className="grid gap-4">
+      {confirmDeleteExpense ? (
+        <ConfirmDialog
+          title="Dzēst izdevumu?"
+          message={`Vai tiešām vēlaties dzēst izdevumu ${formatCurrency(confirmDeleteExpense.amount)} apmērā? Šo darbību nevar atsaukt.`}
+          onConfirm={() => void handleDelete(confirmDeleteExpense)}
+          onCancel={() => setConfirmDeleteExpense(null)}
+        />
+      ) : null}
       <section className="pipboy-panel rounded-[28px] p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -487,7 +495,7 @@ export function ExpensesPage() {
                       {expense.receipt_url && <a className="pipboy-button flex-1 px-3 py-2 text-xs font-medium" href={expense.receipt_url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" />Fails</a>}
                       <button type="button" onClick={() => openEditor(expense, false)} className="pipboy-button flex-1 px-3 py-2 text-xs font-medium"><Pencil className="h-3.5 w-3.5" />Rediģēt</button>
                       <button type="button" onClick={() => openEditor(expense, true)} className="pipboy-button pipboy-button-warning flex-1 px-3 py-2 text-xs font-medium"><Copy className="h-3.5 w-3.5" />Dublēt</button>
-                      <button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button>
+                      <button type="button" onClick={() => setConfirmDeleteExpense(expense)} disabled={deletingExpenseId === expense.id} className="pipboy-button pipboy-button-danger flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}{deletingExpenseId === expense.id ? 'Dzēšam...' : 'Dzēst'}</button>
                     </div>
                   </div>
                   {/* Desktop — single row */}
@@ -506,7 +514,7 @@ export function ExpensesPage() {
                       {expense.receipt_url && <a href={expense.receipt_url} target="_blank" rel="noreferrer" title="Atvērt failu" className="pipboy-button h-8 w-8 rounded-full p-0"><ExternalLink className="h-4 w-4" /></a>}
                       <button type="button" onClick={() => openEditor(expense, false)} title="Rediģēt" className="pipboy-button h-8 w-8 rounded-full p-0"><Pencil className="h-4 w-4" /></button>
                       <button type="button" onClick={() => openEditor(expense, true)} title="Dublēt" className="pipboy-button pipboy-button-warning h-8 w-8 rounded-full p-0"><Copy className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => void handleDelete(expense)} disabled={deletingExpenseId === expense.id} title="Dzēst" className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0 disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
+                      <button type="button" onClick={() => setConfirmDeleteExpense(expense)} disabled={deletingExpenseId === expense.id} title="Dzēst" className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0 disabled:opacity-60">{deletingExpenseId === expense.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
                     </div>
                   </div>
                 </article>

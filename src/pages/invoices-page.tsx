@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer'
 import { AlertTriangle, CircleCheck, CircleOff, Clock, ChevronDown, Copy, Download, Eye, FileUp, LoaderCircle, Mail, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PickerInput } from '@/components/picker-input'
 import { useAuth } from '@/features/auth/auth-provider'
 import { InvoicePdfDocument, type InvoicePdfData } from '@/features/invoices/invoice-pdf'
@@ -143,6 +144,7 @@ export function InvoicesPage() {
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
+  const [confirmDeleteInvoice, setConfirmDeleteInvoice] = useState<Invoice | null>(null)
   const [importingHistory, setImportingHistory] = useState(false)
   const [importingPdf, setImportingPdf] = useState(false)
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
@@ -349,9 +351,7 @@ export function InvoicesPage() {
 
   async function handleDelete(invoice: Invoice) {
     if (!supabase) return
-    const confirmed = window.confirm(`Dzēst rēķinu ${invoice.invoice_number ?? 'bez numura'}?`)
-    if (!confirmed) return
-
+    setConfirmDeleteInvoice(null)
     setDeletingInvoiceId(invoice.id)
     setFeedback(null)
 
@@ -694,6 +694,14 @@ export function InvoicesPage() {
 
   return (
     <div className="grid gap-4">
+      {confirmDeleteInvoice ? (
+        <ConfirmDialog
+          title="Dzēst rēķinu?"
+          message={`Vai tiešām vēlaties dzēst rēķinu ${confirmDeleteInvoice.invoice_number ?? 'bez numura'}? Šo darbību nevar atsaukt.`}
+          onConfirm={() => void handleDelete(confirmDeleteInvoice)}
+          onCancel={() => setConfirmDeleteInvoice(null)}
+        />
+      ) : null}
       <section className="pipboy-panel rounded-[28px] p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -807,7 +815,7 @@ export function InvoicesPage() {
                       <button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} className="pipboy-button flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60"><Pencil className="h-3.5 w-3.5" />Rediģēt</button>
                       <button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} className="pipboy-button pipboy-button-warning flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60"><Copy className="h-3.5 w-3.5" />Dublēt</button>
                       <div className="relative flex-1"><select value={invoice.status} onChange={(event) => void handleStatusChange(invoice.id, event.target.value as Status)} disabled={updatingId === invoice.id} className="pipboy-button w-full appearance-none px-3 py-2 pr-7 text-xs cursor-pointer disabled:opacity-60">{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pipboy-subtle" /></div>
-                      <button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}Dzēst</button>
+                      <button type="button" onClick={() => setConfirmDeleteInvoice(invoice)} disabled={deletingInvoiceId === invoice.id} className="pipboy-button pipboy-button-danger flex-1 px-3 py-2 text-xs font-medium disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}Dzēst</button>
                     </div>
                   </div>
                   {/* Desktop — single row, no button bar */}
@@ -827,7 +835,7 @@ export function InvoicesPage() {
                       <button type="button" onClick={() => void handleSendEmail(invoice)} disabled={sendingEmailId === invoice.id} title={invoice.client?.email ? `Sūtīt uz ${invoice.client.email}` : 'Nav e-pasta'} className="pipboy-button h-8 w-8 rounded-full p-0 border-[rgba(0,255,70,0.5)] bg-[rgba(0,255,70,0.12)] text-[#5dff7a] hover:bg-[rgba(0,255,70,0.2)] disabled:opacity-60">{sendingEmailId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}</button>
                       <button type="button" onClick={() => void openEditor(invoice, false)} disabled={loadingEditorId === invoice.id} title="Rediģēt" className="pipboy-button h-8 w-8 rounded-full p-0 disabled:opacity-60">{loadingEditorId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}</button>
                       <button type="button" onClick={() => void openEditor(invoice, true)} disabled={loadingEditorId === invoice.id} title="Dublēt" className="pipboy-button pipboy-button-warning h-8 w-8 rounded-full p-0 disabled:opacity-60"><Copy className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => void handleDelete(invoice)} disabled={deletingInvoiceId === invoice.id} title="Dzēst" className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0 disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
+                      <button type="button" onClick={() => setConfirmDeleteInvoice(invoice)} disabled={deletingInvoiceId === invoice.id} title="Dzēst" className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0 disabled:opacity-60">{deletingInvoiceId === invoice.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
                     </div>
                   </div>
                 </article>

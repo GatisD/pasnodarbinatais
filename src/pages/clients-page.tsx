@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/auth-provider'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { getFriendlySupabaseError } from '@/lib/supabase-errors'
 import { supabase } from '@/lib/supabase'
 
@@ -40,6 +41,7 @@ export function ClientsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     void loadClients()
@@ -110,17 +112,13 @@ export function ClientsPage() {
       return
     }
 
-    const confirmed = window.confirm('Vai tiešām dzēst šo klientu?')
-
-    if (!confirmed) {
-      return
-    }
-
     const { error } = await supabase
       .from('clients')
       .delete()
       .eq('id', clientId)
       .eq('user_id', user.id)
+
+    setConfirmDeleteId(null)
 
     if (error) {
       setFeedback(getFriendlySupabaseError(error.message))
@@ -149,6 +147,14 @@ export function ClientsPage() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[460px_1fr]">
+      {confirmDeleteId ? (
+        <ConfirmDialog
+          title="Dzēst klientu?"
+          message="Vai tiešām vēlaties dzēst šo klientu? Šo darbību nevar atsaukt."
+          onConfirm={() => handleDelete(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      ) : null}
       <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -304,7 +310,7 @@ export function ClientsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(client.id)}
+                        onClick={() => setConfirmDeleteId(client.id)}
                         title="Dzēst"
                         className="pipboy-button pipboy-button-danger h-8 w-8 rounded-full p-0"
                       >
