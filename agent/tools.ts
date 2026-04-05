@@ -482,15 +482,16 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
 </body>
 </html>`;
 
-  // CC uz sava e-pasta: OWNER_EMAIL > profila e-pasts
+  // Sava e-pasta adrese kopijām: OWNER_EMAIL > profila e-pasts
   const ownerEmail = process.env.OWNER_EMAIL ?? profile.email ?? null;
 
   const resend = new Resend(resendKey);
+
+  // 1. Sūta klientam
   const { error: mailError } = await resend.emails.send({
     from: `${issuerName} <${fromEmail}>`,
     to: invoice.clients.email,
-    cc: ownerEmail ? [ownerEmail] : undefined,
-    reply_to: profile.email ?? undefined,
+    reply_to: ownerEmail ?? undefined,
     subject: `Rēķins ${invoice.invoice_number} — apmaksas termiņš ${dueDate}`,
     text: plainText,
     html: htmlBody,
@@ -501,6 +502,22 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
   });
 
   if (mailError) throw new Error(`Resend kļūda: ${mailError.message}`);
+
+  // 2. Sūta apstiprinājumu sev (ja OWNER_EMAIL iestatīts)
+  if (ownerEmail) {
+    const confirmSubject = `✓ Nosūtīts: ${invoice.invoice_number} → ${invoice.clients.name} (${invoice.total.toFixed(2)} EUR)`;
+    const confirmText = `Rēķins ${invoice.invoice_number} veiksmīgi nosūtīts.\n\nKlients: ${invoice.clients.name}\nE-pasts: ${invoice.clients.email}\nSumma: ${invoice.total.toFixed(2)} EUR\nApmaksas termiņš: ${dueDate}`;
+    await resend.emails.send({
+      from: `${issuerName} <${fromEmail}>`,
+      to: ownerEmail,
+      subject: confirmSubject,
+      text: confirmText,
+      attachments: [{
+        filename: `${invoice.invoice_number}.pdf`,
+        content: pdfBuffer,
+      }],
+    });
+  }
 
   // Mark as sent
   await db()
