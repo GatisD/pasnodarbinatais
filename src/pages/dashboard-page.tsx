@@ -15,7 +15,7 @@ type InvoiceRow = {
   due_date: string
   id: string
   issue_date: string
-  status: 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
+  status: 'izrakstits' | 'nosutits' | 'apmaksats' | 'kavejas' | 'atcelts'
   total: number
 }
 

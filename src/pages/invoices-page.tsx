@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 
 type Client = { id: string; name: string; reg_number: string | null; address: string | null; email: string | null; bank_iban: string | null }
 type Profile = { full_name: string | null; person_code: string | null; address: string | null; email: string | null; bank_iban: string | null; bank_name: string | null; phone: string | null }
-type Status = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
+type Status = 'izrakstits' | 'nosutits' | 'apmaksats' | 'kavejas' | 'atcelts'
 type Invoice = { id: string; invoice_number: string | null; issue_date: string; due_date: string; status: Status; subtotal: number; vat_amount: number; vat_rate: number; total: number; notes: string | null; client: Client | null }
 type Item = { description: string; quantity: string; unit: string; unit_price: string }
 type InvoiceItemRow = { description: string; quantity: number; unit: string; unit_price: number; total: number }
@@ -36,27 +36,31 @@ type HistoricalInvoiceSeed = {
   unit_price: number
 }
 const emptyItem = (): Item => ({ description: '', quantity: '1', unit: 'gab.', unit_price: '0' })
-const labels: Record<Status, string> = { izrakstits: 'Izrakstīts', apmaksats: 'Apmaksāts', kavejas: 'Kavējas', atcelts: 'Atcelts' }
+const labels: Record<Status, string> = { izrakstits: 'Izrakstīts', nosutits: 'Nosūtīts', apmaksats: 'Apmaksāts', kavejas: 'Kavējas', atcelts: 'Atcelts' }
 const pill: Record<Status, string> = {
   izrakstits: 'pipboy-status pipboy-status-issued',
+  nosutits: 'pipboy-status pipboy-status-issued',
   apmaksats: 'pipboy-status pipboy-status-paid',
   kavejas: 'pipboy-status pipboy-status-late',
   atcelts: 'pipboy-status pipboy-status-cancelled',
 }
 const statusIconEl: Record<Status, React.ReactNode> = {
   izrakstits: <Clock className="h-4 w-4" />,
+  nosutits: <Mail className="h-4 w-4" />,
   apmaksats: <CircleCheck className="h-4 w-4" />,
   kavejas: <AlertTriangle className="h-4 w-4" />,
   atcelts: <CircleOff className="h-4 w-4" />,
 }
 const statusIconBg: Record<Status, string> = {
   izrakstits: 'bg-[rgba(255,204,51,0.18)] text-[#ffcc33] border-[rgba(255,204,51,0.35)]',
+  nosutits: 'bg-[rgba(100,180,255,0.18)] text-[#64b4ff] border-[rgba(100,180,255,0.35)]',
   apmaksats: 'bg-[rgba(0,255,65,0.15)] text-[#39ff14] border-[rgba(57,255,20,0.3)]',
   kavejas: 'bg-[rgba(255,80,80,0.2)] text-[#ff6b6b] border-[rgba(255,107,107,0.3)]',
   atcelts: 'bg-[rgba(184,255,184,0.08)] text-[rgba(184,255,184,0.45)] border-[rgba(184,255,184,0.18)]',
 }
 const amountColor: Record<Status, string> = {
   izrakstits: 'text-[#ffcc33]',
+  nosutits: 'text-[#64b4ff]',
   apmaksats: 'pipboy-accent-strong',
   kavejas: 'text-[#ff6b6b]',
   atcelts: 'pipboy-subtle',
@@ -225,7 +229,7 @@ export function InvoicesPage() {
     }
     const rows: Invoice[] = (data ?? []).map((row: any) => ({ ...row, client: row.clients ?? null, subtotal: Number(row.subtotal ?? 0), vat_amount: Number(row.vat_amount ?? 0), vat_rate: Number(row.vat_rate ?? 0), total: Number(row.total ?? 0) }))
     const today = new Date().toISOString().slice(0, 10)
-    const overdueIds = rows.filter((inv) => inv.status === 'izrakstits' && inv.due_date < today).map((inv) => inv.id)
+    const overdueIds = rows.filter((inv) => (inv.status === 'izrakstits' || inv.status === 'nosutits') && inv.due_date < today).map((inv) => inv.id)
     if (overdueIds.length && supabase) {
       await supabase.from('invoices').update({ status: 'kavejas' }).in('id', overdueIds).eq('user_id', user.id)
       setInvoices(rows.map((inv) => overdueIds.includes(inv.id) ? { ...inv, status: 'kavejas' as Status } : inv))
