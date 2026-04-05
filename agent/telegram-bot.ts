@@ -137,6 +137,78 @@ async function sendResponse(ctx: Parameters<typeof bot.on>[1] extends (ctx: infe
   }
 }
 
+// ── Progresa ziņojumu atjaunotājs ───────────────────────────────────────────
+const PROGRESS_STEPS: Record<string, string[]> = {
+  send: [
+    '⏳ Meklē rēķinu...',
+    '📄 Sagatavo PDF...',
+    '📧 Sūta e-pastu...',
+    '⏳ Pabeidz nosūtīšanu...',
+  ],
+  edit: [
+    '⏳ Meklē klientu...',
+    '📄 Ielādē rēķinu...',
+    '✏️ Labo pozīcijas...',
+    '💾 Saglabā izmaiņas...',
+  ],
+  status: [
+    '⏳ Meklē rēķinu...',
+    '✅ Atjaunina statusu...',
+    '⏳ Pabeidz...',
+  ],
+  new_invoice: [
+    '⏳ Meklē klientu...',
+    '📝 Izveido rēķinu...',
+    '⏳ Pabeidz...',
+  ],
+  expense: [
+    '⏳ Apstrādā datus...',
+    '💾 Pievieno izdevumu...',
+    '⏳ Pabeidz...',
+  ],
+  summary: [
+    '⏳ Ielādē rēķinus...',
+    '📊 Aprēķina kopsavilkumu...',
+    '⏳ Pabeidz...',
+  ],
+  default: [
+    '⏳ Apstrādā...',
+    '🔍 Meklē datus...',
+    '⚙️ Izpilda uzdevumu...',
+    '⏳ Gandrīz gatavs...',
+  ],
+};
+
+function startProgress(
+  telegram: any,
+  chatId: number,
+  msgId: number,
+  type: keyof typeof PROGRESS_STEPS = 'default'
+): () => void {
+  const steps = PROGRESS_STEPS[type] ?? PROGRESS_STEPS.default;
+  let i = 0;
+  const timer = setInterval(async () => {
+    i++;
+    if (i < steps.length) {
+      try {
+        await telegram.editMessageText(chatId, msgId, undefined, steps[i]);
+      } catch { /* ziņa jau aizstāta ar atbildi */ }
+    }
+  }, 15_000);
+  return () => clearInterval(timer);
+}
+
+function detectIntent(text: string): keyof typeof PROGRESS_STEPS {
+  const t = text.toLowerCase();
+  if (/nosūt|sūt|e-past|email|izsūt/.test(t)) return 'send';
+  if (/labo|maini|laboj|kļūda|preciz|atjauno|rediģ|pieliek|pievieno.*rēķin/.test(t)) return 'edit';
+  if (/apmaksāt|samaksāt|apmaksāj|samaksāj|atcel|anulē/.test(t)) return 'status';
+  if (/izrakst|jaun.*rēķin|rēķin.*jaun|izveidoj.*rēķin/.test(t)) return 'new_invoice';
+  if (/izdevum|čeks|kvīts/.test(t)) return 'expense';
+  if (/pārskats|nodokļ|ienākum|peļņ|finansiāl|ceturkšņ/.test(t)) return 'summary';
+  return 'default';
+}
+
 // ── Drošības pārbaude ────────────────────────────────────────────────────────
 function isAllowed(userId: number): boolean {
   return !ALLOWED_USER_ID || userId === ALLOWED_USER_ID;
@@ -210,12 +282,15 @@ bot.start((ctx) => {
 bot.command('rekini', async (ctx) => {
   if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
   const waitMsg = await ctx.reply('⏳ Ielādē rēķinus...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, 'summary');
   try {
     const today = new Date().toISOString().slice(0, 10);
     const prompt = `Tu esi Latvijas grāmatvedis. Tev ir pieejami gramatvediba MCP rīki. Šodienas datums: ${today}. Izmanto list_invoices lai iegūtu visus rēķinus ar statusu "izrakstits". Parādī sarakstu ar rēķina numuru, klientu, summu EUR un apmaksas termiņu. Pievieno kopsavilkumu: kopējā neapmaksātā summa. Ja rēķinu nav — paziņo to. Atbildi latviešu valodā.`;
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes.');
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined, `❌ Kļūda: ${errMsg.slice(0, 500)}`);
   }
@@ -225,14 +300,17 @@ bot.command('rekini', async (ctx) => {
 bot.command('izdevumi', async (ctx) => {
   if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
   const waitMsg = await ctx.reply('⏳ Ielādē izdevumus...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, 'expense');
   try {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const prompt = `Tu esi Latvijas grāmatvedis. Tev ir pieejami gramatvediba MCP rīki. Izmanto list_expenses ar year: ${year}, month: ${month} lai iegūtu šī mēneša izdevumus. Parādī sarakstu: datums, piegādātājs, apraksts, summa EUR. Pievieno kopsavilkumu pēc kategorijām un kopējo summu. Atbildi latviešu valodā.`;
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes.');
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined, `❌ Kļūda: ${errMsg.slice(0, 500)}`);
   }
@@ -242,14 +320,17 @@ bot.command('izdevumi', async (ctx) => {
 bot.command('parskata', async (ctx) => {
   if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
   const waitMsg = await ctx.reply('⏳ Sagatavo pārskatu...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, 'summary');
   try {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const prompt = `Tu esi Latvijas grāmatvedis. Tev ir pieejami gramatvediba MCP rīki. Izmanto get_financial_summary ar year: ${year}, month: ${month}. Parādī: ienākumi, apmaksātie ienākumi, izdevumi, peļņa, aplēstie nodokļi (IIN + VSAOI). Atgādini par ceturkšņa VID maksājumiem ja aktuāli. Atbildi latviešu valodā.`;
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes.');
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined, `❌ Kļūda: ${errMsg.slice(0, 500)}`);
   }
@@ -259,11 +340,14 @@ bot.command('parskata', async (ctx) => {
 bot.command('klienti', async (ctx) => {
   if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
   const waitMsg = await ctx.reply('⏳ Ielādē klientus...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, 'default');
   try {
     const prompt = `Tu esi Latvijas grāmatvedis. Tev ir pieejami gramatvediba MCP rīki. Izmanto list_clients lai iegūtu visu klientu sarakstu. Parādī: nosaukums, e-pasts (ja ir), reģistrācijas numurs (ja ir). Atbildi latviešu valodā.`;
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes.');
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined, `❌ Kļūda: ${errMsg.slice(0, 500)}`);
   }
@@ -273,12 +357,16 @@ bot.command('klienti', async (ctx) => {
 bot.on('text', async (ctx) => {
   if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
 
+  const intent = detectIntent(ctx.message.text);
   const waitMsg = await ctx.reply('⏳ Apstrādā...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, intent);
   try {
     const prompt = buildPrompt(ctx.message.text);
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes no Claude.');
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('Kļūda:', errMsg);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined, `❌ Kļūda: ${errMsg.slice(0, 500)}`);
@@ -300,6 +388,7 @@ bot.on('document', async (ctx) => {
   }
 
   const waitMsg = await ctx.reply('⏳ Apstrādā failu...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, 'expense');
 
   try {
     const fileLink = await ctx.telegram.getFileLink(doc.file_id);
@@ -345,9 +434,11 @@ ${extractedText}
 Pēc pievienošanas atbildi latviešu valodā ar apstiprinājumu un izdevuma kopsavilkumu.`;
 
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes no Claude.');
 
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('Faila kļūda:', errMsg);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined,
@@ -360,6 +451,7 @@ bot.on('photo', async (ctx) => {
   if (!isAllowed(ctx.from.id)) { await ctx.reply('Nav atļauts.'); return; }
 
   const waitMsg = await ctx.reply('⏳ Atpazīst čeku...');
+  const stopProgress = startProgress(ctx.telegram, ctx.chat.id, waitMsg.message_id, 'expense');
 
   try {
     const photo = ctx.message.photo[ctx.message.photo.length - 1];
@@ -387,9 +479,11 @@ ${extractedText}
 Pēc pievienošanas atbildi latviešu valodā ar apstiprinājumu un izdevuma kopsavilkumu.`;
 
     const response = await callClaude(prompt);
+    stopProgress();
     await sendResponse(ctx as any, waitMsg.message_id, response || '❌ Nav atbildes no Claude.');
 
   } catch (err) {
+    stopProgress();
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('Foto kļūda:', errMsg);
     await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, undefined,
