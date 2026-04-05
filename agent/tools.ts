@@ -482,11 +482,14 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
 </body>
 </html>`;
 
+  // CC uz sava e-pasta: OWNER_EMAIL > profila e-pasts
+  const ownerEmail = process.env.OWNER_EMAIL ?? profile.email ?? null;
+
   const resend = new Resend(resendKey);
   const { error: mailError } = await resend.emails.send({
     from: `${issuerName} <${fromEmail}>`,
     to: invoice.clients.email,
-    cc: profile.email ? [profile.email] : undefined,
+    cc: ownerEmail ? [ownerEmail] : undefined,
     reply_to: profile.email ?? undefined,
     subject: `Rēķins ${invoice.invoice_number} — apmaksas termiņš ${dueDate}`,
     text: plainText,
