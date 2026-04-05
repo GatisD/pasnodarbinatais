@@ -151,7 +151,7 @@ export function ClientsPage() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       {confirmDeleteId ? (
         <ConfirmDialog
           title="Dzēst klientu?"

@@ -217,7 +217,7 @@ export function DashboardPage() {
   ]
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>

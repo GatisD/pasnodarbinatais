@@ -694,7 +694,7 @@ export function InvoicesPage() {
   void handleImportHistoricalInvoices
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {confirmDeleteInvoice ? (
         <ConfirmDialog
           title="Dzēst rēķinu?"

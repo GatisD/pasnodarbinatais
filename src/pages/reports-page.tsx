@@ -405,7 +405,7 @@ export function ReportsPage() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <section className="pipboy-panel rounded-[28px] p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
