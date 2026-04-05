@@ -29,6 +29,7 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
+    "resend": "^6.10.0",
     "tailwind-merge": "^3.5.0",
     "telegraf": "^4.16.3",
     "tesseract.js": "^7.0.0",

@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js';
 import { generateInvoicePdf, type InvoicePdfData } from './pdf-generator.js';
+import { Resend } from 'resend';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type InvoiceStatus = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts';
@@ -349,31 +350,27 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
   const pdfBase64 = pdfBuffer.toString('base64');
 
   const issuerName = profile.full_name ?? 'Pašnodarbinātais';
-  const defaultMsg = customMessage
+  const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'invoice@resend.dev';
+  const bodyText = customMessage
     ?? `Labdien,\n\nLūdzu apmaksāt pievienoto rēķinu ${invoice.invoice_number} līdz ${invoice.due_date}.\n\nAr cieņu,\n${issuerName}`;
 
-  // Call Supabase Edge Function
-  const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const response = await fetch(`${supabaseUrl}/functions/v1/send-invoice-email`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${_accessToken}`,
-    },
-    body: JSON.stringify({
-      to: invoice.clients.email,
-      subject: `Rēķins ${invoice.invoice_number} — ${issuerName}`,
-      textBody: defaultMsg,
-      pdfBase64,
-      fileName: `${invoice.invoice_number}.pdf`,
-      replyTo: profile.email ?? undefined,
-    }),
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) throw new Error('Nav RESEND_API_KEY vides mainīgais.');
+
+  const resend = new Resend(resendKey);
+  const { error: mailError } = await resend.emails.send({
+    from: `${issuerName} <${fromEmail}>`,
+    to: invoice.clients.email,
+    reply_to: profile.email ?? undefined,
+    subject: `Rēķins ${invoice.invoice_number}`,
+    text: bodyText,
+    attachments: [{
+      filename: `${invoice.invoice_number}.pdf`,
+      content: pdfBuffer,
+    }],
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`E-pasta sūtīšanas kļūda: ${errText}`);
-  }
+  if (mailError) throw new Error(`Resend kļūda: ${mailError.message}`);
 
   // Mark as sent
   await db()
