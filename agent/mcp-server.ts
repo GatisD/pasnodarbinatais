@@ -168,7 +168,7 @@ const TOOLS = [
       properties: {
         status: {
           type: 'string',
-          enum: ['izrakstits', 'apmaksats', 'kavejas', 'atcelts'],
+          enum: ['izrakstits', 'nosutits', 'apmaksats', 'kavejas', 'atcelts'],
           description: 'Filtrēt pēc statusa',
         },
         client_id: { type: 'string', description: 'Filtrēt pēc klienta ID' },
@@ -227,7 +227,7 @@ const TOOLS = [
         invoice_id: { type: 'string', description: 'Rēķina UUID' },
         status: {
           type: 'string',
-          enum: ['izrakstits', 'apmaksats', 'kavejas', 'atcelts'],
+          enum: ['izrakstits', 'nosutits', 'apmaksats', 'kavejas', 'atcelts'],
         },
       },
       required: ['invoice_id', 'status'],

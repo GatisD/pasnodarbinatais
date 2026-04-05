@@ -3,7 +3,7 @@ import { generateInvoicePdf, type InvoicePdfData } from './pdf-generator.js';
 import { Resend } from 'resend';
 
 // ── Types ────────────────────────────────────────────────────────────────────
-export type InvoiceStatus = 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts';
+export type InvoiceStatus = 'izrakstits' | 'nosutits' | 'apmaksats' | 'kavejas' | 'atcelts';
 export type ExpenseCategory =
   | 'sakari' | 'transports' | 'degviela' | 'biroja_preces'
   | 'programmatura' | 'majaslapa' | 'reklama' | 'gramatvediba'
@@ -519,10 +519,10 @@ export async function sendInvoiceEmail(invoiceId: string, customMessage?: string
     });
   }
 
-  // Mark as sent
+  // Mark as sent + update status to 'nosutits'
   await db()
     .from('invoices')
-    .update({ sent_at: new Date().toISOString() })
+    .update({ sent_at: new Date().toISOString(), status: 'nosutits' })
     .eq('id', invoiceId)
     .eq('user_id', uid());
 
@@ -647,7 +647,7 @@ export async function getFinancialSummary(args: { year: number; month?: number }
       .from('invoices')
       .select('total, status')
       .eq('user_id', uid())
-      .in('status', ['izrakstits', 'apmaksats'])
+      .in('status', ['izrakstits', 'nosutits', 'apmaksats'])
       .gte('issue_date', dateFrom)
       .lte('issue_date', dateTo),
     db()

@@ -15,7 +15,7 @@ type ReportInvoice = {
   invoice_number: string
   issue_date: string
   paid_at: string | null
-  status: 'izrakstits' | 'apmaksats' | 'kavejas' | 'atcelts'
+  status: 'izrakstits' | 'nosutits' | 'apmaksats' | 'kavejas' | 'atcelts'
   total: number
   vat_amount: number
 }
