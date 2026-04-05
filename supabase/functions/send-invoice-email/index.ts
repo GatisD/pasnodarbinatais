@@ -59,6 +59,7 @@ Deno.serve(async (req: Request) => {
     body: JSON.stringify({
       from: resendFrom,
       to: [to],
+      cc: ['connect@gatisdesign.com'],
       ...(replyTo ? { reply_to: replyTo } : {}),
       subject,
       text: textBody,
